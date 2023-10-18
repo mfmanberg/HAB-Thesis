@@ -1,0 +1,44 @@
+---
+title: "EPABuoyCharles"
+output: html_document
+date: "2023-10-18"
+---
+```{r}
+  #Install the required package
+install.packages('googlesheets4')
+```
+```{r}
+#Load the required library 
+library(googlesheets4)
+```
+```{r}
+#Read google sheets data into R
+x <- read_sheet('https://docs.google.com/spreadsheets/d/1J9-ZpmQT_oxLZ4kfe5gRvBs7vZhEGhSCIpNS78XOQUE/edit?usp=sharing')
+```
+
+```{r}
+#Reads data into R
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/18xDJ9cLaZuj3JqhFsf847nSLMGKjfvWZmHWifsrPBq8/edit?usp=sharing')
+
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+
+#Prints the data
+
+```
+```{r}
+```
+
