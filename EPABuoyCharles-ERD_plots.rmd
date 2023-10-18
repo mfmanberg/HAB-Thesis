@@ -112,4 +112,7 @@ ts_phy_2021 <- df_CR %>%
 length(ts_chl_2021)
 acf(ts_chl_2021,lag.max = 30)
 acf(ts_phy_2021,lag.max = 30)
+
+## you can check an individual value as follows
+cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
 ```
