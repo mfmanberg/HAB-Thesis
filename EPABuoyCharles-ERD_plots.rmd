@@ -7,6 +7,11 @@ date: "2023-10-18"
   #Install the required package
 install.packages('googlesheets4')
 ```
+```{r}
+# Install from CRAN
+install.packages("tidyverse")
+install.packages("lubridate")
+```
 
 ```{r}
 #Load the required library 
@@ -17,7 +22,7 @@ library(googlesheets4)
 #Read google sheets data into R
 x <- read_sheet('https://docs.google.com/spreadsheets/d/1J9-ZpmQT_oxLZ4kfe5gRvBs7vZhEGhSCIpNS78XOQUE/edit?usp=sharing')
 ```
-
+#Charles River
 ```{r}
 #Reads data into R
 CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
@@ -41,6 +46,7 @@ CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTV
 #Prints the data
 
 ```
+
 ```{r}
 df_CR <- bind_rows(
   CR2015,
@@ -61,6 +67,36 @@ df_CR <- df_CR %>%
   
 ```
 
+
+```{r}
+#Create Missing Hours + Insert NA Values 
+library(dplyr, warn.conflicts = FALSE)
+library(tidyr)
+
+#df_CR_all <- tribble(
+ # ~timestamp,
+  #"6/4/2012 2:00",
+  #"6/4/2012 3:00",
+  #"6/4/2012 12:00",
+  #"6/4/2012 13:00",
+  #"6/4/2012 16:00",
+  #"6/4/2012 20:00",
+  #"6/4/2012 22:00",
+  #"6/4/2012 23:00",
+  #"6/5/2012 3:00",
+  #"6/5/2012 15:00",
+  #"6/5/2012 20:00",
+  #"6/6/2012 2:00"
+#)
+
+#df_CR_all <- mutate(df_CR_all, timestamp = as.POSIXct(timestamp, format = "%m/%d/%Y %H:%M"))
+
+df_CR_all <- complete(df_CR, timestamp = seq.POSIXt(min(timestamp), max(timestamp), by = "hour", "pairwise")
+df_CR_all
+```
+
+
+
 ```{r}
 df_CR %>% group_by(date,hour) %>%
   filter(year(date) >= 2021) %>%
@@ -70,8 +106,6 @@ df_CR %>% group_by(date,hour) %>%
   geom_path(aes(y=chl,color="chl")) + 
   geom_path(aes(y=phy,color="phy"))
 ```
-
-
 
 
 ```{r}
@@ -94,7 +128,6 @@ acf(ts_phy_2021,lag.max = 24*30)
 ```
 
 
-
 ```{r}
 ts_chl_2021 <- df_CR %>% 
   filter(year(date) == 2021) %>%
@@ -115,4 +148,104 @@ acf(ts_phy_2021,lag.max = 30)
 
 ## you can check an individual value as follows
 cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
+
 ```
+
+#Mystic
+```{r}
+
+#Reads data into R
+MR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+
+MR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+
+MR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1Plw_zpnRmz6vs3ZyhHr88M1PX3GAQMvBnVv6cKgM5hk/edit?usp=sharing')
+
+#MR2020 does not exist
+
+MR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1rVk7lLEXyA7nOzjmszhe1cjYGeGkG_pgfDdC_XsDojs/edit?usp=sharing')
+
+MR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/14mxyMMuZvD38kcb-4Xk9APvnY-1z95czcckXm_Dyg_w/edit?usp=sharing')
+
+MR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/1fDgZrK7rcXdpvcCyZZWT0TrpIFcDwJ1ZE5v2yHYJo7U/edit?usp=sharing')
+
+MR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/17eNCkZNgf6aouqLVN8TEPodX4OGDFitxjBb8rapQiJ8/edit?usp=sharing')
+
+MR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/1JA_MWcbTwdW2oVO9ee1TrbhbYx03wN8MXgFZRMvyyWw/edit?usp=sharing')
+
+#Prints the data
+
+```
+```{r}
+df_MR <- bind_rows(
+  MR2015,
+  MR2016,
+  MR2017 %>% rename(`time est`=time),
+  MR2018,
+  MR2019,
+  MR2021,
+  MR2022,
+  MR2023
+)
+
+df_MR <- df_MR %>%
+  mutate(hour = pmin(hour(`time est`),hour(`time edt`),na.rm=T),
+         minute = pmin(minute(`time est`),minute(`time edt`),na.rm=T)) %>%
+  select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`)
+
+```
+
+
+```
+```{r}
+df_MR %>% group_by(date,hour) %>%
+  filter(year(date) >= 2021) %>%
+  summarise(across(c("chl","phy"),mean),.groups="keep") %>%
+  mutate(date= date+hours(hour)) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl")) + 
+  geom_path(aes(y=phy,color="phy"))
+```
+
+
+```{r}
+ts_chl_2021 <- df_MR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
+
+ts_phy_2021 <- df_MR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
+
+
+length(ts_chl_2021)
+acf(ts_chl_2021,lag.max = 24*30)
+acf(ts_phy_2021,lag.max = 24*30)
+```
+
+
+```{r}
+ts_chl_2021 <- df_MR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
+
+ts_phy_2021 <- df_MR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
+
+
+length(ts_chl_2021)
+acf(ts_chl_2021,lag.max = 30)
+acf(ts_phy_2021,lag.max = 30)
+
+## you can check an individual value as follows
+cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
+
