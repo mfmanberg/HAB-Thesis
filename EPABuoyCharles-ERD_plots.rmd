@@ -3,24 +3,17 @@ title: "EPABuoyCharles"
 output: html_document
 date: "2023-10-18"
 ---
-```{r}
-  #Install the required package
-install.packages('googlesheets4')
-```
-```{r}
-# Install from CRAN
-install.packages("tidyverse")
-install.packages("lubridate")
-```
+
 
 ```{r}
 #Load the required library 
+library(rEDM)
+library(tidyverse)
 library(googlesheets4)
+library(tidyverse)
+library(padr)
+library(zoo)
 ```
-
-```{r}
-#Read google sheets data into R
-x <- read_sheet('https://docs.google.com/spreadsheets/d/1J9-ZpmQT_oxLZ4kfe5gRvBs7vZhEGhSCIpNS78XOQUE/edit?usp=sharing')
 ```
 #Charles River
 ```{r}
@@ -48,6 +41,7 @@ CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTV
 ```
 
 ```{r}
+#bind rows
 df_CR <- bind_rows(
   CR2015,
   CR2016,
@@ -59,44 +53,23 @@ df_CR <- bind_rows(
   CR2022,
   CR2023
 )
-
+#combine data
 df_CR <- df_CR %>%
   mutate(hour = pmin(hour(`time est`),hour(`time edt`),na.rm=T),
          minute = pmin(minute(`time est`),minute(`time edt`),na.rm=T)) %>%
-  select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`)
+  select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`, ph=`ph`, Celsius =`temp c`,  spcond = `spcond (ms/cm)`, do = `do (mg/l)`,turb = `turbidity (fnu)` )
   
 ```
 
-
+#add rows w/ missing NA values 
 ```{r}
-#Create Missing Hours + Insert NA Values 
-library(dplyr, warn.conflicts = FALSE)
-library(tidyr)
 
-#df_CR_all <- tribble(
- # ~timestamp,
-  #"6/4/2012 2:00",
-  #"6/4/2012 3:00",
-  #"6/4/2012 12:00",
-  #"6/4/2012 13:00",
-  #"6/4/2012 16:00",
-  #"6/4/2012 20:00",
-  #"6/4/2012 22:00",
-  #"6/4/2012 23:00",
-  #"6/5/2012 3:00",
-  #"6/5/2012 15:00",
-  #"6/5/2012 20:00",
-  #"6/6/2012 2:00"
-#)
+df_CR <- df_CR %>% pad()
 
-#df_CR_all <- mutate(df_CR_all, timestamp = as.POSIXct(timestamp, format = "%m/%d/%Y %H:%M"))
-
-df_CR_all <- complete(df_CR, timestamp = seq.POSIXt(min(timestamp), max(timestamp), by = "hour", "pairwise")
-df_CR_all
 ```
 
 
-
+#time-series+ggplot - chl + phy
 ```{r}
 df_CR %>% group_by(date,hour) %>%
   filter(year(date) >= 2021) %>%
@@ -104,11 +77,32 @@ df_CR %>% group_by(date,hour) %>%
   mutate(date= date+hours(hour)) %>%
   ggplot(aes(x=date)) + 
   geom_path(aes(y=chl,color="chl")) + 
-  geom_path(aes(y=phy,color="phy"))
+  geom_path(aes(y=phy,color="phy")) 
+```
+
+```{r}
+df_CR %>% group_by(date,hour) %>%
+  filter(year(date) >= 2021) %>%
+  summarise(across(c("chl","phy", "ph", "Celsius", "spcond", "do", "turb"),mean),.groups="keep") %>%
+  mutate(date= date+hours(hour)) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl")) + 
+  geom_path(aes(y=phy,color="phy")) +
+  geom_path(aes(y=ph,color="ph")) + 
+  geom_path(aes(y=Celsius,color="Celsius")) +
+  geom_path(aes(y=spcond,color="spcond")) +
+  geom_path(aes(y=do,color="do")) +
+  geom_path(aes(y=turb,color="turb"))
 ```
 
 
+
+
 ```{r}
+#put back NA values
+df_CR <- na.omit(df_CR) 
+
+#Run ACF CHL, PHY 2021
 ts_chl_2021 <- df_CR %>% 
   filter(year(date) == 2021) %>%
   group_by(date,hour) %>%
@@ -124,7 +118,47 @@ ts_phy_2021 <- df_CR %>%
 
 length(ts_chl_2021)
 acf(ts_chl_2021,lag.max = 24*30)
+abline(h = c(0.3,0.6) , col = c("red","red"))
+#determine lag -talk to deyle?
 acf(ts_phy_2021,lag.max = 24*30)
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+
+```
+
+```{r}
+#Run ACF CHL, PHY ALL
+ts_chl_all <- df_CR %>% 
+  group_by(date,hour) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
+
+ts_phy_all <- df_CR %>% 
+  group_by(date,hour) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
+  
+length(ts_chl_all)
+acf(ts_chl_all,lag.max = 24*30)
+abline(h = c(0.3,0.6) , col = c("red","red"))
+acf(ts_phy_all,lag.max = 24*30)
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+```
+
+
+```{r}
+#**return ACF value - deyle** 
+length(ts_chl_2021)
+acfchl2021 <- acf(ts_chl_2021,lag.max = 24*30)
+acfchl2021
+abline(h = c(0.3,0.6) , col = c("red","red"))
+#determine lag
+Autocorrelation_y<-acf(ts_chl_2021,lag.max = 24*30,plot=FALSE)
+Autocorrelation_y
+acf_string <- toString(Autocorrelation_y)
+acf_string
+acf_string2 <- dim(acf_string)
 ```
 
 
@@ -147,9 +181,10 @@ acf(ts_chl_2021,lag.max = 30)
 acf(ts_phy_2021,lag.max = 30)
 
 ## you can check an individual value as follows
-cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
+cor(ts_phy_2021,lag(ts_phy_2021,1),use="pairwise")
 
 ```
+
 
 #Mystic
 ```{r}
@@ -248,4 +283,9 @@ acf(ts_phy_2021,lag.max = 30)
 
 ## you can check an individual value as follows
 cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
+
+
+```
+
+
 

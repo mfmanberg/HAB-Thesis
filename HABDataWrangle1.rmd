@@ -1,0 +1,143 @@
+---
+title: "NAs"
+output: html_document
+date: "2023-10-26"
+---
+
+
+```{r}
+#Load the required library 
+install.packages("padr")
+library(padr)
+library(googlesheets4)
+library("tidyverse")
+```
+
+#Generate Days 2015 - 2023
+```{r}
+start = as.Date("2015/03/23")
+full <- seq(start, by='1 day', length=3059)
+full
+#create data frame
+date.df <- data.frame(full)
+
+# Add empty column
+df2 <- date.df %>%
+  add_column(empty_column = NA)
+date.df
+
+# Find rows where df_CR$date does not match date.df$full
+new_rows <- df_CR %>%
+  filter(date != date.df$full)
+
+# Create a new row with the condition you specified
+new_row <- data.frame(date = date.df$full) 
+# Bind the new row to df_CR
+df_CR <- bind_rows(df_CR, new_row)
+
+
+```
+
+```{r}
+ts <- seq.POSIXt(as.POSIXct("2015-05-13",'%m/%d/%y'), as.POSIXct("2023-09-27",'%m/%d/%y'), by="day")
+
+ts <- seq.POSIXt(as.POSIXct("2015-05-13",'%m/%d/%y'), as.POSIXct("2023-09-27",'%m/%d/%y'), by="day")
+
+ts <- format.POSIXct(ts,'%m/%d/%y')
+
+df <- data.frame(dates = ts)
+
+ data_with_missing_times <- cross_join(df,df_CR$date, copy = copy)
+  data_with_missing_times
+
+
+```
+```{r}
+Finaltry <- df_CR %>%
+      complete(te = seq.POSIXt(min(df_CR$date), max(df_CR$date), by = "day"), 
+               df_CR$hour, df_CR$minute, df_CR$chl, df_CR$phy)
+```
+https://www.rdocumentation.org/packages/padr/versions/0.6.2/topics/pad
+
+
+
+Left Join
+
+```{r}
+#left join using dplyr
+
+
+pad(df_CR)
+```
+
+#Generate Missing Values
+```{r}
+with(df_CR, value[match(full, df_CR$date)])
+     
+```
+
+
+#If not match to CR, enter value
+
+
+#match data
+```{r}
+with(partial, value[match(full, date)])
+```
+
+
+
+
+#Combine Result w/ Dates
+```{r}
+data.frame(Date=full, value=with(partial, value[match(full, date)]))
+```
+
+
+
+
+
+
+
+
+#Deyle Notes
+```{r}
+#Define f_date_bin
+
+start_date <- "2015-05-13"
+end_date <- "2023-09-27"
+
+v_dates_2mo <- expand_grid(Year=2015:2020,Month=seq(1,12,by=2)) %>%
+  mutate(Day=1) %>%
+  mutate(Date=(make_date(Year,Month,Day))) %>%
+  pull(Date)
+  
+v_dates_3mo <- expand_grid(Year=2015:2020,Month=seq(1,12,by=3)) %>%
+  mutate(Day=1) %>%
+  mutate(Date=(make_date(Year,Month,Day))) %>%
+  pull(Date)
+
+f_date_bin <- function(df,v_dates,date_col=Date,binnable_col=everything()){
+  
+  df_binned <- df %>%
+    mutate({{date_col}} := cut.Date({{date_col}},breaks=v_dates)) %>%
+    mutate({{date_col}} := ymd({{date_col}})) %>%
+    right_join(tibble("{{date_col}}" := v_dates)) %>%
+    group_by({{date_col}}) %>%
+    summarise(across(binnable_col,mean))
+    
+    
+ df_binned <- df %>%
+     mutate({{date_col}} := cut.Date({{date_col}},breaks=v_dates)) %>%
+     mutate({{date_col}} := ymd({{date_col}})) %>%
+   right_join(tibble("{{date_col}}" := v_dates))
+  
+  return(df_binned) 
+}
+
+df_CR %>%
+  pull(chl) %>%
+  table()
+
+```
+

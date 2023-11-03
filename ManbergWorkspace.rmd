@@ -1,0 +1,16 @@
+---
+title: "ManbergWorkspace"
+output: html_document
+date: "2023-10-23"
+---
+left join: library(dplyr) result <- left_join(x, y, by = "common_column")
+A left join is used to join the table by selecting all the records from the first dataframe and only matching records in the second dataframe.
+
+Read sheet: 
+x <- read_sheet('https://docs.google.com/spreadsheets/d/1J9-ZpmQT_oxLZ4kfe5gRvBs7vZhEGhSCIpNS78XOQUE/edit?usp=sharing')
+
+Packages: 
+# Install from CRAN
+install.packages("tidyverse")
+install.packages("lubridate")
+install.packages('googlesheets4')

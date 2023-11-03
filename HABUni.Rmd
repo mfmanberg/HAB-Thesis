@@ -1,0 +1,490 @@
+---
+title: "HAB_Uni.rmd"
+output: html_document
+date: "2023-10-26"
+---
+#EDM Paper
+We first examine the dependence of simplex predictability on the embedding dimension.
+```{r}
+rho_E <- EmbedDimension(dataFrame = df_CR, columns = "chl", target = "chl",
+lib = "1 72", pred = "1 72", showPlot = TRUE)
+```
+
+
+While there is an initial peak in the simplex prediction at E = 3, the global maximum is at E = 8. This suggests that both E = 3 and E = 8 are practical embedding dimensions, although E = 8 is preferrable with a higher predictive skill. To test for nonlinearity we use the S-map PredictNonlinear() function.
+
+To test for nonlinearity we use the S-map PredictNonlinear() function.
+
+```{r}
+E = 8
+rho_theta_e3 = PredictNonlinear(dataFrame = df_CR, columns = "chl",
+target = "chl", lib = "1 73", pred = "1 73", E = E)
+
+```
+
+The S-map results demonstrate clear nonlinearity in the Thrips time series, as nonlinear models theta > 0
+give substantially better predictions than the linear model theta = 0. This suggests that Thrips, despite the
+strong seasonal dynamics, do not simply track the environment passively, but have some intrinsic dynamics.
+To look more closely at the issue of seasonal drivers, however, we turn to convergent cross-mapping (CCM).
+
+#Tahoe ->
+
+## Data Setup
+
+We first set packages.
+
+```{r,warning=FALSE}
+library(rEDM)
+library(tidyverse)
+library(googlesheets4)
+library(tidyverse)
+library(padr)
+library(zoo)
+```
+
+We also source help functions. 
+```{r}
+ vignette("rEDM-tutorial") #EDM Help 
+
+#doesn't work
+source("./FUNCTIONS/help_functions_EDM.R")
+
+```
+
+```{r}
+sessionInfo()
+```
+
+#**what is this?**
+```{r}
+#load("./DATA/PROCESSED/_0 2-month BGC.Rdata")
+# load("./DATA/PROCESSED/_0 3-month BGC.Rdata")
+
+#df_BGC <- df_2mo_BGC_LTP[102:323,]
+# gap fill with linear interpolant
+df_CR <- mutate_at(df_CR,-1, ~ zoo::na.approx(., maxgap = 4))
+T_annual <- 6
+
+# df_BGC <- df_3mo_BGC_LTP[68:215,]
+T_season <- 4
+L_save_params <-c("columns","target","E","Tp","knn","tau","theta")
+```
+
+## EDM Analysis Setup
+
+We will replicate the analysis across several variables, using a few tests and statistics to contextualize and interpret the results. (These are how we establish the statistical significance of the methods; is there meaningful prediction skill).
+
+Null Hypothesis 1: Signal is due to random chance. \\
+Null Hypothesis 2: Signal is due to serial autocorrelation in the time series. \\
+Null Hypothesis 3: Signal is due to seasonal cycling.
+
+```{r}
+#**what is this?**
+num_surr <- 500
+```
+
+
+
+### Univariate Analysis
+
+
+```{r}
+
+do_univariate_1_var <- function(df,target_col){
+  
+  E_list <- 1:15
+  theta_list <- c(0,10^seq(-2,1,by=.075))
+  
+  lib <- paste(1,NROW(df))
+  pred <- paste(1,NROW(df))
+  
+  ## Simplex
+  stats_simplex <- map_df(E_list,function(E_i){
+    out_simplex_i <- Simplex(dataFrame=df,
+                             target=target_col,
+                             columns=target_col,
+                             lib=lib,pred=pred,
+                             E=E_i,
+                             parameterList=TRUE)
+    
+    stats_i <- compute_stats(out_simplex_i$predictions$Predictions,
+                             out_simplex_i$predictions$Observations)
+    
+    stats_i <- bind_cols(out_simplex_i$parameters[L_save_params],
+              stats_i
+              )
+    
+    return(stats_i)
+    
+  })
+  
+  stats_simplex <- suppressMessages(type_convert(stats_simplex))
+  
+  E_star <- as.integer(stats_simplex$E[which.max(stats_simplex$rho)])
+  
+  ## S-map
+  stats_smap <- map_df(theta_list,function(theta_i){
+    
+    out_smap_i <- SMap(dataFrame=df,
+                       target=target_col,
+                       columns=target_col,
+                       lib=lib,pred=pred,
+                       E=E_star,
+                       theta=theta_i,
+                       parameterList = TRUE)
+    
+    stats_i <- compute_stats(out_smap_i$predictions$Predictions,out_smap_i$predictions$Observations)
+    
+    stats_i <- bind_cols(
+      out_smap_i$parameters[L_save_params],
+              stats_i
+              )
+    
+    return(stats_i)
+    
+  })
+  
+  stats_smap <- suppressMessages(type_convert(stats_smap))
+  
+  return(list(simplex=stats_simplex,smap=stats_smap))
+  
+}
+```
+
+```{r}
+summarise_univars <- function(edm_stats){
+  
+  out <- data.frame(
+    target = edm_stats$simplex$target[1],
+    rho_simplex = max(edm_stats$simplex$rho),
+    mae_simplex = min(edm_stats$simplex$mae),
+    rmse_simplex = min(edm_stats$simplex$rmse),
+    rho_smap_0 = edm_stats$smap$rho[1],
+    mae_smap_0 = edm_stats$smap$mae[1],
+    rmse_smap_0 = edm_stats$smap$rmse[1],
+    rho_smap = max(edm_stats$smap$rho),
+    mae_smap = min(edm_stats$smap$mae),
+    rmse_smap = min(edm_stats$smap$rmse)
+  )
+  
+  return(out)
+}
+```
+
+### Null Hypothesis 1
+
+**These could be rewritten for parallel calculation with `furrr`**.
+
+Null Hypothesis 1: Signal is due to random chance.
+
+```{r}
+do_shuffle_surrogates <- function(df,target_col,n_surr=500){
+  
+  df_surr <- SurrogateData(df %>% pull(!!target_col),method="random_shuffle",num_surr=n_surr)
+  
+  map_df(1:n_surr,function(i_surr){
+    
+    df_i <- cbind(df[,1],data.frame(surr=df_surr[,i_surr]))
+    out <- do_univariate_1_var(df_i,target_col="surr")
+    
+    out_summary <- summarise_univars(out)
+    
+    return(out_summary)
+    
+  })
+  
+}
+```
+
+
+### Null Hypothesis 2
+
+Null Hypothesis 2: Signal is due to serial autocorrelation in the time series.
+
+Inertia in the time series and simple peroidic patterns.
+
+```{r}
+do_AR_surrogates <- function(df,target_col,n_surr=500){
+  
+  df_surr <- SurrogateData.AR(df %>% pull(!!target_col),num_surr=n_surr)
+  
+  map_df(1:n_surr,function(i_surr){
+    
+    df_i <- cbind(df[,1],data.frame(surr=df_surr[,i_surr]))
+    out <- do_univariate_1_var(df_i,target_col="surr")
+    
+    out_summary <- summarise_univars(out)
+    
+    return(out_summary)
+    
+  })
+}
+```
+
+
+### Null Hypothesis 3
+
+This we will test with a seasonal surrogate method. Essentially, we ask if the EDM statistics of the real time series are significantly improved from a time series formed from the same seasonal cycle with randomized residuals-- essentially a time series that is an equivalent noisy measure of the seasonal cycle as the true time series.
+
+In another situation, we could consider instead comparison to non-parametric predictions based solely on the phase of season. However, since we are looking at 2-3mo temporal averaging, this variable only takes on 4-6 possible values. On the other hand, this is a perhaps overly conservative, since the translation of the seasonal sinusoid into a noisy nonlinear oscillation itself could be considered a sign of deterministic dynamics.
+
+```{r}
+do_seasonal_surrogates <- function(df,target_col,n_surr=500,T_period=4){
+  
+  df_surr <- SurrogateData(df %>% pull(!!target_col),method="seasonal",num_surr=n_surr,T_period = T_period)
+  
+  map_df(1:n_surr,function(i_surr){
+    
+    df_i <- cbind(df[,1],data.frame(surr=df_surr[,i_surr]))
+    out <- do_univariate_1_var(df_i,target_col="surr")
+    
+    out_summary <- summarise_univars(out)
+    
+    return(out_summary)
+    
+  })
+  
+}
+```
+
+
+## EDM Analysis
+
+```{r}
+out_all_var_univar <- map_dfr(names(df_CR)[-1],function(var_name){
+  out <- do_univariate_1_var(df_CR,var_name)
+  return(summarise_univars(out))
+  })
+```
+
+*I will add standard "rho-vs-E" and "rho-vs-theta" plots here for at least Secchi_Ave.*
+
+```{r}
+out_all_var_univar %>% select(target,contains("rho"))
+```
+
+In general, we see the biogeochemistry variables have predictable short-term dynamics. The lowest forecast skill is seen for the deep chlorophyll concentration, "Chla_deep_euphotic", which shows simplex forecast skill of about rho = 0.44, which is still highly significant for > 200 data points under the parametric derivations of Pearson's correlation for Gaussian random variables. These data, of course, do not follow Gaussian distributions, so it is better to assess significance using null surrogate methods.
+
+The evidence of nonlinear dynamics is not particularly strong at least at this view. The improvement in forecast skill from S-map (theta=0), i.e. a global linear model, to the optimal nonlinearly tuned S-map (theta>0) is most pronounced for NO3 in the "secchi zone".
+
+### Surrogates
+
+We rerun the univariate analysis on surrogate date for each variable under each null hypothesis (i.e. using shuffle surrogates, seasonal surrogates, and phase-randomized fourier surrogates).
+
+```{r}
+do_all_surrogates <- function(target_variable,file_surr){
+  if(!file.exists(file_surr)){
+    out_shuffle <- do_shuffle_surrogates(df_CR,target_variable,n_surr = num_surr) %>%
+      mutate(target=target_variable)
+    out_AR <- do_AR_surrogates(df_BGC,target_variable,n_surr = num_surr) %>% 
+      mutate(target=target_variable)
+    out_seasonal <- do_seasonal_surrogates(df_CR,target_variable,n_surr = num_surr,T_period=T_annual) %>% 
+      mutate(target=target_variable)
+    
+    save(out_seasonal,out_AR,out_shuffle,file=file_surr)
+  }else{
+    load(file_surr)
+  }
+}
+```
+
+```{r}
+file_Sechi_surr <- "./RESULTS/_1_sechi_ave_univar_surr_2mo.Rdata"
+do_all_surrogates("Secchi_Ave",file_Sechi_surr)
+```
+
+```{r}
+file_Chla_sechi_surr <- "./RESULTS/_1_Chla_sechi_univar_surr_2mo.Rdata"
+do_all_surrogates("Chla_sechi",file_Chla_sechi_surr)
+```
+
+```{r}
+file_Chla_deep_euphotic <- "./RESULTS/_1_Chla_deep_euphotic_univar_surr_2mo.Rdata"
+do_all_surrogates("Chla_deep_euphotic",file_Chla_deep_euphotic)
+```
+
+```{r}
+file_NO3_sechi_surr <- "./RESULTS/_1_NO3_sechi_univar_surr_2mo.Rdata"
+do_all_surrogates("NO3_sechi",file_NO3_sechi_surr)
+```
+
+```{r}
+file_NO3_deep_euphotic <- "./RESULTS/_1_NO3_deep_euphotic_univar_surr_2mo.Rdata"
+do_all_surrogates("NO3_deep_euphotic",file_NO3_deep_euphotic)
+```
+
+
+## Visualization
+
+We wish to look at EDM benchmarks across the BGC variables, comparing each to the null distributions. This requires re-organizing the outputs somewhat.
+
+```{r}
+source("./FUNCTIONS/_1_funs_plotting.R")
+```
+
+Collect across the list of output files:
+
+```{r}
+file_list <- list(file_Sechi_surr,
+                  file_Chla_sechi_surr,
+                  file_Chla_deep_euphotic,
+                  file_NO3_sechi_surr,
+                  file_NO3_deep_euphotic)
+
+out_all_null_all_var <- map_dfr(file_list,function(fpath){
+  
+  env_i <- new.env()
+  load(fpath,env_i)
+  
+  out_i <- collect_null_results(outputs=list(env_i$out_shuffle,env_i$out_AR,env_i$out_seasonal),
+                       labels=list("shuffle","persistence","seasonal"))
+  
+  return(out_i)
+  
+})
+```
+
+```{r Jitter rho}
+# g_jit <- plot_null_jitters(out_all_null_all_var,"rho_simplex")
+# g_vio <- plot_null_violins(out_all_null_all_var,"rho_simplex")
+# 
+# g_vio + theme_bw()
+# 
+# g_group_box <- out_all_null_all_var %>% ggplot(aes(x=target,y=rho_simplex,fill=method)) + geom_boxplot(alpha=0.5)
+# g_group_violin <- out_all_null_all_var %>% ggplot(aes(x=target,y=rho_simplex,fill=method)) + geom_violin(alpha=0.5)
+```
+
+```{r}
+
+
+
+g_simplex_all_nulls <- out_all_null_all_var %>% 
+  # mutate(target = factor(target,levels=names(dict_Fig4_labelling),labels=dict_Fig4_labelling)) %>%
+  ggplot(aes(x=target,y=rho_simplex)) + 
+  geom_violin(alpha=0.5,aes(fill=method)) +
+  geom_point(data=out_all_var_univar,size=3,aes(color="true")) +
+  geom_spoke(data=out_all_var_univar,aes(angle = 0, radius = 0.25,color="true")) +
+geom_spoke(data=out_all_var_univar,aes(angle = pi, radius = 0.25,color="true")) +
+  coord_flip() +
+  scale_color_manual(values="black",breaks="true") +
+  scale_x_discrete(limits=names(dict_Fig4_labelling),labels=dict_Fig4_labelling) +
+  theme_bw() +
+  labs(title="Null distributions of Simplex forecast skill",color="")
+
+g_smap_all_nulls <- out_all_null_all_var %>% 
+  # mutate(target = factor(target,levels=names(dict_Fig4_labelling),labels=dict_Fig4_labelling)) %>%
+  ggplot(aes(x=target,y=rho_smap)) + 
+  geom_violin(alpha=0.5,aes(fill=method)) +
+  geom_point(data=out_all_var_univar,size=3,aes(color="true")) +
+  geom_spoke(data=out_all_var_univar,aes(angle = 0, radius = 0.25,color="true")) +
+geom_spoke(data=out_all_var_univar,aes(angle = pi, radius = 0.25,color="true")) +
+  coord_flip() +
+  scale_color_manual(values="black",breaks="true") +
+  scale_x_discrete(limits=names(dict_Fig4_labelling),labels=dict_Fig4_labelling) +
+  theme_bw() +
+  labs(title="Null distributions of S-map forecast skill",color="")
+
+save(g_simplex_all_nulls,g_smap_all_nulls,file="_1_FIGURES_all_nulls.Rdata")
+```
+
+
+```{r}
+print(g_simplex_all_nulls)
+```
+* Can potentially expand caption *
+
+```{r}
+print(g_smap_all_nulls)
+```
+
+In all cases, prediction skills are well outside of what would be expected for random data with the same distribution of values (i.e. the "shuffle" surrogates). The seasonal patterns in all the time series do create more prediction, but in general the EDM results appear to lie outside the expected prediction skill of the "seasonal" null as well.
+
+Previously, we also experimented with phase-randomized Fourier surrogates (i.e. the Ebisuzaki method). These surrogate time series showed forecast skill distributions that include the empirical result in most cases. However, that is largely expected.
+
+The difference between the seasonal null distributions and Fourier null distributions is potentially interesting. The Fourier null will generally capture prediction due to seasonal cycling but also longer time-scale fluctuations, including secular trends. It is in many ways a very conservative null model, since there is potentially a lot of interesting limnology in the Fourier spectra of these data.
+
+## Time Horizon
+
+These patterns might shift examining longer forecast horizons, which also could be relevant for management (six, twelve, eighteen, and thirty-six months?).
+
+```{r}
+# v_tp_int <- c(6,12,18,36) # note these need to be divided by the "tau" of data processing (2 or 3 mo)
+
+v_tp_int <- 1:(36/2)
+v_E <- 1:12
+```
+
+```{r}
+# df_i <- df_3mo_BGC_LTP[68:215,]
+df_i <- df_BGC
+target_col_i <- "Secchi_Ave"
+# target_col_i <- "Secchi_Ave"
+
+out <- map_df(v_tp_int,function(tp_i){
+  
+  lib <- paste(1,NROW(df_i))
+  pred <- paste(1,NROW(df_i))
+  
+  ## Simplex
+  stats_simplex <- map_df(v_E,function(E_i){
+    out_simplex_i <- Simplex(dataFrame=df_i,
+                             target=target_col_i,
+                             columns=target_col_i,
+                             lib=lib,pred=pred,
+                             E=E_i,
+                             Tp=tp_i,
+                             # knn=4,
+                             parameterList=TRUE)
+    
+    stats_i <- compute_stats(out_simplex_i$predictions$Predictions,
+                             out_simplex_i$predictions$Observations)
+    
+    stats_i <- bind_cols(out_simplex_i$parameters[L_save_params],
+              stats_i
+              )
+    
+    stats_i <- suppressMessages(type_convert(stats_i))
+    
+    return(stats_i)
+  }) # map(v_E)
+  return(stats_simplex)
+}) # map(v_tp_int)
+
+```
+
+
+```{r}
+plot_df <- out %>% group_by(Tp) %>% slice_max(order_by=-mae,n=1) %>% ungroup()
+plot_df %>% ggplot(aes(x=Tp,y=mae)) + geom_line()
+
+plot_df <- out %>% group_by(Tp) %>% slice_max(order_by=rho,n=1) %>% ungroup()
+plot_df %>% ggplot(aes(x=Tp,y=rho)) + geom_line()
+```
+
+## Interpretation
+
+### Endogenous versus exogenous drivers of change
+
+### Audience: Us
+
+For data sets in limnological settings, how well can we use these kinds of approach to untangle causality?
+
+### Audience: Colleagues doing parametric analyses
+
+Parametric models can't really deal with long-term causality.
+
+### Audience: Management Agencies
+
+Forecasting and decision-making.
+
+Exogenous contexts/climate patterns:
+  - El nino
+  - Drought
+
+Legacy effects on the way the system behaves based on relationships with climate.
+
+
+Questions:
+ - Do climatic drivers have simple or complex effects?
+
+
