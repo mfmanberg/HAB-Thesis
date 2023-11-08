@@ -364,6 +364,16 @@ CR_nutrients <- right_join(CR_nutrients, MWRAMap_stations,  by = c("Station ID" 
 
 CRWAdata <- read_sheet('https://docs.google.com/spreadsheets/d/1pJxZbbWJUtoLKJ9lX6DA09esBOZdVCDiB4Ztd92hrtE/edit?usp=sharing')
 
+
+CRWAdata_wide <- CRWAdata %>%
+  select(Site_ID,Date_Collected,
+         Time_Collected,Component_ID,Actual_Result) %>%
+  # do something about Results that are "<10.0". turn into 0 for now?
+  group_by(Site_ID,Date_Collected,Time_Collected,Component_ID) %>%
+  summarise(Actual_Result = mean(Actual_Result,na.rm=T),.groups = "keep") %>%
+  pivot_wider(names_from=Component_ID,values_from=Actual_Result)
+
+
 #Data types
 CRWAtypes <- CRWAdata %>% distinct(CRWAdata$Component_ID) #remove duplicate data
 Component_ID2 <- CRWAtypes
