@@ -1,143 +1,432 @@
 ---
-title: "NAs"
+title: "DataWrangles"
 output: html_document
 date: "2023-10-26"
 ---
 
+### Library + Data Wrangling
 
 ```{r}
 #Load the required library 
-install.packages("padr")
-library(padr)
+library(rEDM)
+library(tidyverse)
 library(googlesheets4)
-library("tidyverse")
-```
-
-#Generate Days 2015 - 2023
-```{r}
-start = as.Date("2015/03/23")
-full <- seq(start, by='1 day', length=3059)
-full
-#create data frame
-date.df <- data.frame(full)
-
-# Add empty column
-df2 <- date.df %>%
-  add_column(empty_column = NA)
-date.df
-
-# Find rows where df_CR$date does not match date.df$full
-new_rows <- df_CR %>%
-  filter(date != date.df$full)
-
-# Create a new row with the condition you specified
-new_row <- data.frame(date = date.df$full) 
-# Bind the new row to df_CR
-df_CR <- bind_rows(df_CR, new_row)
-
-
+library(tidyverse)
+library(padr)
+library(zoo)
+library(spatstat)
+library(forecast)
+library(tseries)
+library(dataRetrieval)
+library(corrplot)
+library(psych)
+library(Hmisc)
+library(reshape2)
+library(plyr)
+library(lubridate)
 ```
 
 ```{r}
-ts <- seq.POSIXt(as.POSIXct("2015-05-13",'%m/%d/%y'), as.POSIXct("2023-09-27",'%m/%d/%y'), by="day")
-
-ts <- seq.POSIXt(as.POSIXct("2015-05-13",'%m/%d/%y'), as.POSIXct("2023-09-27",'%m/%d/%y'), by="day")
-
-ts <- format.POSIXct(ts,'%m/%d/%y')
-
-df <- data.frame(dates = ts)
-
- data_with_missing_times <- cross_join(df,df_CR$date, copy = copy)
-  data_with_missing_times
-
-
-```
-```{r}
-Finaltry <- df_CR %>%
-      complete(te = seq.POSIXt(min(df_CR$date), max(df_CR$date), by = "day"), 
-               df_CR$hour, df_CR$minute, df_CR$chl, df_CR$phy)
-```
-https://www.rdocumentation.org/packages/padr/versions/0.6.2/topics/pad
-
-
-
-Left Join
-
-```{r}
-#left join using dplyr
-
-
-pad(df_CR)
+vignette("dataRetrieval", package = "dataRetrieval")
 ```
 
-#Generate Missing Values
+## Data Wrangling
+
 ```{r}
-with(df_CR, value[match(full, df_CR$date)])
-     
+#Charles River
+#Reads data into R
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/18xDJ9cLaZuj3JqhFsf847nSLMGKjfvWZmHWifsrPBq8/edit?usp=sharing')
+
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+
+#Prints the data
 ```
 
-
-#If not match to CR, enter value
-
-
-#match data
 ```{r}
-with(partial, value[match(full, date)])
+#bind rows
+df_CR <- bind_rows(   CR2015,   CR2016,   CR2017 %>% rename(`time est`=time),   CR2018,   CR2019,   CR2020,   CR2021,   CR2022,   CR2023 )  
+#combine data
+df_CR <- df_CR %>%   mutate(hour = pmin(hour(`time est`),hour(`time edt`),na.rm=T),          minute = pmin(minute(`time est`),minute(`time edt`),na.rm=T)) %>%   select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`, ph=`ph`, Celsius =`temp c`,  spcond = `spcond (ms/cm)`, do = `do (mg/l)`,turb = `turbidity (fnu)` )
 ```
 
+#add rows w/ missing NA values
 
-
-
-#Combine Result w/ Dates
 ```{r}
-data.frame(Date=full, value=with(partial, value[match(full, date)]))
+df_CR <- df_CR %>% pad()
 ```
 
+#time-series+ggplot - chl + phy
 
-
-
-
-
-
-
-#Deyle Notes
 ```{r}
-#Define f_date_bin
+df_CR %>% group_by(date,hour) %>%   filter(year(date) >= 2021) %>%   summarise(across(c("chl","phy"),mean),.groups="keep") %>%   mutate(date= date+hours(hour)) %>%   ggplot(aes(x=date)) +    geom_path(aes(y=chl,color="chl")) +    geom_path(aes(y=phy,color="phy"))
+```
 
-start_date <- "2015-05-13"
-end_date <- "2023-09-27"
+#Plot ALL data
 
-v_dates_2mo <- expand_grid(Year=2015:2020,Month=seq(1,12,by=2)) %>%
-  mutate(Day=1) %>%
-  mutate(Date=(make_date(Year,Month,Day))) %>%
-  pull(Date)
-  
-v_dates_3mo <- expand_grid(Year=2015:2020,Month=seq(1,12,by=3)) %>%
-  mutate(Day=1) %>%
-  mutate(Date=(make_date(Year,Month,Day))) %>%
-  pull(Date)
+```{r}
+df_CR %>% group_by(date,hour) %>%   filter(year(date) >= 2021) %>%   summarise(across(c("chl","phy", "ph", "Celsius", "spcond", "do", "turb"),mean),.groups="keep") %>%   mutate(date= date+hours(hour)) %>%   ggplot(aes(x=date)) +    geom_path(aes(y=chl,color="chl")) +    geom_path(aes(y=phy,color="phy")) +   geom_path(aes(y=ph,color="ph")) +    geom_path(aes(y=Celsius,color="Celsius")) +   geom_path(aes(y=spcond,color="spcond")) +   geom_path(aes(y=do,color="do")) +   geom_path(aes(y=turb,color="turb"))
+```
 
-f_date_bin <- function(df,v_dates,date_col=Date,binnable_col=everything()){
-  
-  df_binned <- df %>%
-    mutate({{date_col}} := cut.Date({{date_col}},breaks=v_dates)) %>%
-    mutate({{date_col}} := ymd({{date_col}})) %>%
-    right_join(tibble("{{date_col}}" := v_dates)) %>%
-    group_by({{date_col}}) %>%
-    summarise(across(binnable_col,mean))
-    
-    
- df_binned <- df %>%
-     mutate({{date_col}} := cut.Date({{date_col}},breaks=v_dates)) %>%
-     mutate({{date_col}} := ymd({{date_col}})) %>%
-   right_join(tibble("{{date_col}}" := v_dates))
-  
-  return(df_binned) 
-}
+#Take Away NA Values + Aggregate Daily Mean
 
-df_CR %>%
+```{r}
+#Take away NA values 
+df_CR <- na.omit(df_CR) 
+#Aggregate Daily Mean
+ag_df_CR <-df_CR %>%    group_by(date) %>%   summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb)) 
+ #Omit NA Values
+ag_df_CR <- ag_df_CR %>% pad()   
+#Plot  
+ag_df_CR %>% group_by(date) %>%   filter(year(date) >= 2021) %>%   ggplot(aes(x=date)) +    geom_path(aes(y=chl,color="chl")) +    geom_path(aes(y=phy,color="phy")) +   geom_path(aes(y=ph,color="ph")) +    geom_path(aes(y=Celsius,color="Celsius")) +   geom_path(aes(y=spcond,color="spcond")) +   geom_path(aes(y=do,color="do")) +   geom_path(aes(y=turb,color="turb"))
+```
+
+### ARIMA
+
+```{r}
+#**Monthly Only?**
+
+class(ag_df_CR)
+
+#Fit Dataset
+rate <- ts(ag_df_CR[,'chl'],start = c(2015,5), frequency = 365 )
+
+#Grab Data
+autoplot(rate) + ggtitle ("Aggregate CR") + ylab("CR")
+
+#Build ARIMA Model
+fit_ARIMA <-auto.arima(rate, seasonal = TRUE)
+print(summary(fit_ARIMA))
+checkresiduals(fit_ARIMA)
+
+#Forecast
+fcast <- forecast(fit_ARIMA, h =1) #h = amount of periods ahead
+autoplot
+plot(fcast)
+print(summary(fcast))
+
+#Fitting an auto.arima model in R using the Forecast package
+#fit_basic1<- auto.arima(df_CR,xreg=trainREG_TS)
+#forecast_1<-forecast(fit_basic1,xreg = testREG_TS)
+
+```
+
+### PCF
+
+```{r}
+?pcf
+
+#**runpcf - Dietze**
+p <- pcf(Kest(df_CR$chl))
+plot(p)
+
+my_array <-simplify2array(df_CR$chl)
+```
+
+### PACF
+
+```{r}
+#Take away NA values 
+ag_df_CR <- na.omit(ag_df_CR) 
+pacf(df_CR$chl, lag.max = 7)
+
+```
+
+```{r}
+#**dietze**
+ag_df_CR_2021 <- ag_df_CR %>% filter(year(date)==2021)
+
+pacf2021 <- ag_df_CR %>% 
+  filter(year(date)==2021) %>%
   pull(chl) %>%
-  table()
+  pacf(lag.max=45)
+
+
+pacf2021 <- pacf(pacf2021$chl, lag.max = 7)
+#correlation at speicifc lag corrected for short lag
+pacf2021 <- pacf(pacf2021$chl, lag.max = 30)
 
 ```
 
+### Coefficients of Correlation
+
+```{r}
+
+describe(ag_df_CR)  #this will flag those variables that are categorical with an asterix
+numericag <- char2numeric(ag_df_CR)  #this makes all numeric
+cor_data = cor(numericag)
+cor_data <- cor_data[-c(1),-c(1) ] #remove 1st row + column
+print("Correlation matrix")
+print(cor_data)
+corrplot(cor_data, method="number")
+
+
+rcorr(as.matrix(numericag[-1,-1]), type = c("pearson"))
+
+#chl and do are very correlated
+#a lot of chl fair amount of photosynthesis 
+#euphotic zone
+#make another chat 
+
+
+```
+
+### USGS
+
+```{r}
+
+library(dataRetrieval)
+
+outputData <- readNWISdata(huc = "01090001",
+                    period = "P3231D",
+                    siteStatus = "all",
+                    outputDataTypeCd = c("iv","dv","pk","sv","gw","qw","id","aw","ad"),
+                    service="site")
+print(outputData)
+
+outputDatacoords <- readNWISdata(huc = "01090001",
+                    period = "P3231D",
+                    siteStatus = "all",
+                    outputDataTypeCd = c("iv","dv","pk","sv","gw","qw","id","aw","ad"),
+                    service="site")
+
+library(dataRetrieval)
+
+outputDataDaily <- readNWISdata(huc = "01090001",
+                    period = "P30D",
+                    siteStatus = "all",
+                    service="dv")
+
+```
+
+```{r}
+#Create table w/ coords + site #
+
+outputDatawrangle <- 
+data.frame(outputDatacoords$site_no, outputDatacoords$dec_lat_va, outputDatacoords$dec_long_va, outputDatacoords$station_nm)
+
+outputDatawrangle2 <- outputDatawrangle %>% distinct() #remove duplicate data
+
+```
+
+```{r}
+USGSoutput<- 
+right_join(outputDataDaily, outputDatawrangle2, by = c("site_no"  = "outputDatacoords.site_no"))
+
+```
+
+Export
+
+```{r}
+write_csv(USGSoutput, file = "USGSoutput.csv") 
+```
+
+### MWRA Non-CSO
+
+```{r}
+#CRBACTERIA
+CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')
+colnames(CR_bacteria) <- as.character(CR_bacteria[5,]) #set header
+CR_bacteria <- CR_bacteria[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+CR_bacteria <- CR_bacteria %>% 
+       rename("Date" = 6 ) 
+
+
+```
+
+```{r}
+#Convert Dates 
+library(lubridate)
+
+x <- "2022-12-28 09:55:00 UTC"
+x_date <- as.Date(ymd_hms(x))
+str(x_date)
+Date[1:1], format: "2022-12-28"
+
+#print(strptime(CR_bacteria$Date, format = "%m-%d-%Y %H:%M:", tz = "UTC"))
+
+
+```
+
+#Note Dump
+
+```{r}
+as.POSIXct(x = "02:27:16 05-Mar-2019", format = "%H:%M:%S %d-%b-%Y")
+
+CR_bacteria$Date <- format(CR_bacteria$Date, format = "%m-%d-%Y %H:%M:")
+
+test<- CR_bacteria[['Date']] <- strptime(CR_bacteria[['Date']], 
+                                 format = "%m-%d-%Y %H:%M:") 
+test
+```
+
+```{r}
+
+CR_secchi <- read_sheet('https://docs.google.com/spreadsheets/d/1fW4_60i-SYkdTPlFQQdN0b5nlZirc2uQyjDN_dvWA18/edit?usp=sharing', range = 'cr_secchi')
+colnames(CR_secchi) <- as.character(CR_secchi[5,])#set header
+CR_secchi <- CR_secchi[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+CR_secchi <- CR_secchi %>% 
+       rename("Date" = 6)
+
+#CRPHYSICAL
+CR_physical <- read_sheet('https://docs.google.com/spreadsheets/d/1P5kzPHFABPTKffxM2yQBTIQWq9NAmnGd3PF6kOsSFNU/edit?usp=sharing', range = 'cr_physical')
+colnames(CR_physical) <- as.character(CR_physical[5,])#set header
+CR_physical <- CR_physical[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+CR_physical <- CR_physical %>% 
+       rename("Date" = 6)
+
+#CRNUTRIENTS
+CR_nutrients <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
+colnames(CR_nutrients) <- as.character(CR_nutrients[5,])#set header
+CR_nutrients <- CR_nutrients[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+CR_nutrients <- CR_nutrients %>% 
+       rename("Date" = 6)
+
+
+
+
+
+```
+
+```{r}
+CR_bacteria$Date
+ 
+```
+
+```{r}
+MWRAMap_stations <- read_sheet('https://docs.google.com/spreadsheets/d/1UYcDAnvZI8dbvf5ENLHLA8HRtX-Y_epLCfOeUsCB8yQ/edit?usp=sharing', range = 'Map_stations')
+
+#Combine DFs
+CR_bacteria <-  right_join(CR_bacteria , MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+
+CR_physical <- right_join(CR_physical, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+                          
+CR_secchi <- right_join(CR_secchi, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+
+CR_nutrients <- right_join(CR_nutrients, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+
+
+
+```
+
+### CRWA
+
+```{r}
+
+CRWAdata <- read_sheet('https://docs.google.com/spreadsheets/d/1pJxZbbWJUtoLKJ9lX6DA09esBOZdVCDiB4Ztd92hrtE/edit?usp=sharing')
+
+#Data types
+CRWAtypes <- CRWAdata %>% distinct(CRWAdata$Component_ID) #remove duplicate data
+Component_ID2 <- CRWAtypes
+
+```
+
+```{r}
+#Merge Data Types + Data
+CRWAmerged <- merge(CRWAdata, Component_ID2)
+
+#Convert Rows to Headers in New DF
+CRWAmerged2 <- 
+dcast(CRWAmerged,QAQC_Status~ CRWAdata$Component_ID)
+CRWAmerged2 <- CRWAmerged2[-c(1)] #remove column
+
+#Merge DF
+CRWAmerged3 <- 
+cbind(CRWAmerged,CRWAmerged2)
+
+
+```
+
+**Deyle** #Take Column, Match to Actual Result, Sort Value
+
+```{r}
+CRWAmerged4 <- CRWAmerged3
+
+CRWAmerged4$Ammonia <- as.character(CRWAmerged4$Ammonia) #convert to charecter 
+
+CRWAmerged4 <- 
+semi_join(CRWAmerged4,  CRWAmerged4, by = c("Ammonia"  = "Component_ID"))
+
+```
+
+```{r}
+#SITE IDs
+CRWAMap_stations <- read_sheet('https://docs.google.com/spreadsheets/d/1mkNv-07loU1pDz8SWE0spoa-phkgEL65I69Hi26P3Rc/edit?usp=sharing')
+CRWAMap_stations <- CRWAMap_stations[-c(2,6:23)] #remove columns
+
+#Combine DFs
+CRWAfinal <-  
+right_join(CRWAdata , CRWAMap_stations,  by = c("Site_ID"  = "Site_ID"))
+```
+
+### CRPD
+
+```{r}
+
+CRPDPhosphorus <- read_sheet('https://docs.google.com/spreadsheets/d/1_kNmoQZGYHPl2WIFnaRyezArj6fqWIYX7enTjzOKwH0/edit?usp=sharing', range = 'Total Phosphorus') 
+
+CRPDTotalSuspendedSolids <- read_sheet('https://docs.google.com/spreadsheets/d/1_kNmoQZGYHPl2WIFnaRyezArj6fqWIYX7enTjzOKwH0/edit?usp=sharing', range = 'Total Suspended Solids')
+
+CRPDAmmonia <- read_sheet('https://docs.google.com/spreadsheets/d/1_kNmoQZGYHPl2WIFnaRyezArj6fqWIYX7enTjzOKwH0/edit?usp=sharing', range = 'Ammonia')
+
+CRPDDissolvedOxygen <- read_sheet('https://docs.google.com/spreadsheets/d/1_kNmoQZGYHPl2WIFnaRyezArj6fqWIYX7enTjzOKwH0/edit?usp=sharing', range = 'Dissoloved Oxygen')
+
+CRPDEColi <- read_sheet('https://docs.google.com/spreadsheets/d/1_kNmoQZGYHPl2WIFnaRyezArj6fqWIYX7enTjzOKwH0/edit?usp=sharing', range = 'EColi')
+```
+
+```{r}
+#Join all Dates + Data
+
+join_all(list(CRPDPhosphorus, CRPDAmmonia, CRPDDissolvedOxygen, CRPDEColi, CRPDTotalSuspendedSolids), by='Date', type='left')
+
+
+```
+
+### Max Paper
+
+```{r}
+MaxCounts <-  read_sheet('https://docs.google.com/spreadsheets/d/1ZuHtqJuvNgF3Je60vyb9ZhGCF8d617ag4z3uWywtkfA/edit?usp=sharing')
+
+Max2017 <- read_sheet('https://docs.google.com/spreadsheets/d/1OZuFPC7K1xMcUtSPy2sQ8rcaa1TeAXAQFdaPztrQ2tc/edit?usp=sharing')
+
+Max2018Chl <- read_sheet('https://docs.google.com/spreadsheets/d/1mp1-lz7kCVdtAkhHKyeQCNVAi6lE3kJdtOEQo1zdLV0/edit?usp=sharing')
+
+Max2018TurbChl <- read_sheet('https://docs.google.com/spreadsheets/d/1Xo7ERxFApiiCgwb1ZmKJTQ-HQWpES6xrSeJRZmdFFO8/edit?usp=sharing')
+
+#need to combine above 2
+
+```
+
+```{r}
+MDPH <- read_sheet('https://docs.google.com/spreadsheets/d/1a6U6dOQEYg8FF1lN6KjcE5uw4aM_lXRcxj7vdOqX4c4/edit?usp=sharing')
+```
+
+### MWRA CSO Data
+
+```{r}
+MWRACSOData <- read_sheet('https://docs.google.com/spreadsheets/d/1PRu1yvIuxOnMyazAVkXGv7dkOKUClNxl7CrvrctPREU/edit?usp=sharing')
+```
+
+```{r}
+MWRACSOCoords <- read_sheet('https://docs.google.com/spreadsheets/d/1O9RONCW0lGEsPrt-srZU8M4xeNxDM3hJmkA1IWL2mW4/edit?usp=sharing')
+
+MWRACSOFinal <-  
+left_join(MWRACSOData , MWRACSOCoords ,  by = c("CSO Number" = "OUTFALL"  ))
+```
