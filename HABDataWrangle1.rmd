@@ -237,15 +237,47 @@ write_csv(USGSoutput, file = "USGSoutput.csv")
 ### MWRA Non-CSO
 
 ```{r}
-#CRBACTERIA
-CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')
+# Pull raw CRBACTERIA
+fname_CR_bacteria <- "./data/raw/CR_bacteria.Rdata"
+
+if(!file.exists(fname_CR_bacteria)){
+  CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')
+  save(CR_bacteria,file=fname_CR_bacteria)
+}else{
+  load(fname_CR_bacteria)
+}
+```
+
+```{r}
+
+## Wrangle
+v_new_names <- c(
+  "Project_ID",
+  "Region",
+  "Subregion",
+  "DEP_Segment",
+  "Station_ID",
+  "Date",
+  "Depth_category",
+  "Sample_depth",
+  "Enterococcus",
+  "Enterococcus_condition",
+  "E_coli",
+  "E_coli_condition",
+  "coliform",
+  "coliform_condition",
+  "Rainfall_1d",
+  "Rainfall_2d",
+  "Rainfall_3d"
+)
+
 colnames(CR_bacteria) <- as.character(CR_bacteria[5,]) #set header
 CR_bacteria <- CR_bacteria[-c(1:5), ] #Remove 1st 5 Rows
 #rename columns
+
 CR_bacteria <- CR_bacteria %>% 
-       rename("Date" = 6 ) 
-
-
+  set_names(v_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
 ```
 
 ```{r}
