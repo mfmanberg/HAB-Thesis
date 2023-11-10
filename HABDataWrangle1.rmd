@@ -281,32 +281,6 @@ CR_bacteria <- CR_bacteria %>%
 ```
 
 ```{r}
-#Convert Dates 
-library(lubridate)
-
-x <- "2022-12-28 09:55:00 UTC"
-x_date <- as.Date(ymd_hms(x))
-str(x_date)
-Date[1:1], format: "2022-12-28"
-
-#print(strptime(CR_bacteria$Date, format = "%m-%d-%Y %H:%M:", tz = "UTC"))
-
-
-```
-
-#Note Dump
-
-```{r}
-as.POSIXct(x = "02:27:16 05-Mar-2019", format = "%H:%M:%S %d-%b-%Y")
-
-CR_bacteria$Date <- format(CR_bacteria$Date, format = "%m-%d-%Y %H:%M:")
-
-test<- CR_bacteria[['Date']] <- strptime(CR_bacteria[['Date']], 
-                                 format = "%m-%d-%Y %H:%M:") 
-test
-```
-
-```{r}
 
 CR_secchi <- read_sheet('https://docs.google.com/spreadsheets/d/1fW4_60i-SYkdTPlFQQdN0b5nlZirc2uQyjDN_dvWA18/edit?usp=sharing', range = 'cr_secchi')
 colnames(CR_secchi) <- as.character(CR_secchi[5,])#set header
@@ -338,11 +312,6 @@ CR_nutrients <- CR_nutrients %>%
 ```
 
 ```{r}
-CR_bacteria$Date
- 
-```
-
-```{r}
 MWRAMap_stations <- read_sheet('https://docs.google.com/spreadsheets/d/1UYcDAnvZI8dbvf5ENLHLA8HRtX-Y_epLCfOeUsCB8yQ/edit?usp=sharing', range = 'Map_stations')
 
 #Combine DFs
@@ -371,7 +340,7 @@ CRWAdata_wide <- CRWAdata %>%
   # do something about Results that are "<10.0". turn into 0 for now?
   group_by(Site_ID,Date_Collected,Time_Collected,Component_ID) %>%
   summarise(Actual_Result = mean(Actual_Result,na.rm=T),.groups = "keep") %>%
-  pivot_wider(names_from=Component_ID,values_from=Actual_Result)
+  pivot_wider(names_from= Component_ID,values_from=Actual_Result)
 
 
 #Data types
