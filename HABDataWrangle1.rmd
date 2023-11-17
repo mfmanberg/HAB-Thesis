@@ -228,6 +228,8 @@ right_join(outputDataDaily, outputDatawrangle2, by = c("site_no"  = "outputDatac
 
 ```
 
+**RENAME COLUMNS**
+
 Export
 
 ```{r}
@@ -235,6 +237,10 @@ write_csv(USGSoutput, file = "USGSoutput.csv")
 ```
 
 ### MWRA Non-CSO
+
+```{r}
+CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')
+```
 
 ```{r}
 # Pull raw CRBACTERIA
@@ -251,12 +257,13 @@ if(!file.exists(fname_CR_bacteria)){
 ```{r}
 
 ## Wrangle
+
 v_new_names <- c(
   "Project_ID",
   "Region",
   "Subregion",
   "DEP_Segment",
-  "Station_ID",
+  "Station ID",
   "Date",
   "Depth_category",
   "Sample_depth",
@@ -282,6 +289,8 @@ CR_bacteria <- CR_bacteria %>%
 
 ```{r}
 
+#FIX DATE
+
 CR_secchi <- read_sheet('https://docs.google.com/spreadsheets/d/1fW4_60i-SYkdTPlFQQdN0b5nlZirc2uQyjDN_dvWA18/edit?usp=sharing', range = 'cr_secchi')
 colnames(CR_secchi) <- as.character(CR_secchi[5,])#set header
 CR_secchi <- CR_secchi[-c(1:5), ] #Remove 1st 5 Rows
@@ -299,8 +308,8 @@ CR_physical <- CR_physical %>%
 
 #CRNUTRIENTS
 CR_nutrients <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
-colnames(CR_nutrients) <- as.character(CR_nutrients[5,])#set header
-CR_nutrients <- CR_nutrients[-c(1:5), ] #Remove 1st 5 Rows
+colnames(CR_nutrients) <- as.character(CR_nutrients[4,])#set header
+CR_nutrients <- CR_nutrients[-c(1:4), ] #Remove 1st 4 Rows
 #rename columns
 CR_nutrients <- CR_nutrients %>% 
        rename("Date" = 6)
@@ -314,8 +323,16 @@ CR_nutrients <- CR_nutrients %>%
 ```{r}
 MWRAMap_stations <- read_sheet('https://docs.google.com/spreadsheets/d/1UYcDAnvZI8dbvf5ENLHLA8HRtX-Y_epLCfOeUsCB8yQ/edit?usp=sharing', range = 'Map_stations')
 
+```
+
+CR_nutrients \<- right_join(CR_nutrients, MWRAMap_stations, by = c("Station ID" = "STAT_ID" ))
+
+```{r}
+
 #Combine DFs
+
 CR_bacteria <-  right_join(CR_bacteria , MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+
 
 CR_physical <- right_join(CR_physical, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
                           
@@ -327,20 +344,39 @@ CR_nutrients <- right_join(CR_nutrients, MWRAMap_stations,  by = c("Station ID" 
 
 ```
 
+```{r}
+CR_bacteria <- data.frame(lapply(CR_bacteria, as.character))
+CR_physical <- data.frame(lapply(CR_physical, as.character))
+CR_secchi <- data.frame(lapply(CR_secchi, as.character))
+CR_nutrients <- data.frame(lapply(CR_nutrients, as.character))
+
+
+write.csv(CR_bacteria, file = "CR_bacteria.csv")
+write.csv(CR_physical, file = "CR_physical.csv")
+write.csv(CR_secchi, file = "CR_secchi.csv")
+write.csv(CR_nutrients, file = "CR_nutrients.csv")
+```
+
 ### CRWA
 
 ```{r}
-
 CRWAdata <- read_sheet('https://docs.google.com/spreadsheets/d/1pJxZbbWJUtoLKJ9lX6DA09esBOZdVCDiB4Ztd92hrtE/edit?usp=sharing')
+```
 
+```{r}
+
+
+ # do something about Results that are "<10.0". turn into 0 for now?
+
+#CRWAdata <- CRWAdata %>%
+  #mutate( = ifelse(Value == "<10.0", 0, as.numeric(Value)))
 
 CRWAdata_wide <- CRWAdata %>%
   select(Site_ID,Date_Collected,
-         Time_Collected,Component_ID,Actual_Result) %>%
-  # do something about Results that are "<10.0". turn into 0 for now?
+         Time_Collected,Component_ID,Reporting_Result) %>%
   group_by(Site_ID,Date_Collected,Time_Collected,Component_ID) %>%
-  summarise(Actual_Result = mean(Actual_Result,na.rm=T),.groups = "keep") %>%
-  pivot_wider(names_from= Component_ID,values_from=Actual_Result)
+  summarise(Reporting_Result = mean(Reporting_Result,na.rm=T),.groups = "keep") %>%
+  pivot_wider(names_from= Component_ID,values_from=Reporting_Result)
 
 
 #Data types
@@ -350,41 +386,19 @@ Component_ID2 <- CRWAtypes
 ```
 
 ```{r}
-#Merge Data Types + Data
-CRWAmerged <- merge(CRWAdata, Component_ID2)
-
-#Convert Rows to Headers in New DF
-CRWAmerged2 <- 
-dcast(CRWAmerged,QAQC_Status~ CRWAdata$Component_ID)
-CRWAmerged2 <- CRWAmerged2[-c(1)] #remove column
-
-#Merge DF
-CRWAmerged3 <- 
-cbind(CRWAmerged,CRWAmerged2)
-
-
-```
-
-**Deyle** #Take Column, Match to Actual Result, Sort Value
-
-```{r}
-CRWAmerged4 <- CRWAmerged3
-
-CRWAmerged4$Ammonia <- as.character(CRWAmerged4$Ammonia) #convert to charecter 
-
-CRWAmerged4 <- 
-semi_join(CRWAmerged4,  CRWAmerged4, by = c("Ammonia"  = "Component_ID"))
-
-```
-
-```{r}
 #SITE IDs
 CRWAMap_stations <- read_sheet('https://docs.google.com/spreadsheets/d/1mkNv-07loU1pDz8SWE0spoa-phkgEL65I69Hi26P3Rc/edit?usp=sharing')
 CRWAMap_stations <- CRWAMap_stations[-c(2,6:23)] #remove columns
 
+
+```
+
+```{r}
 #Combine DFs
 CRWAfinal <-  
-right_join(CRWAdata , CRWAMap_stations,  by = c("Site_ID"  = "Site_ID"))
+right_join(CRWAdata_wide , CRWAMap_stations,  by = c("Site_ID"  = "Site_ID"))
+
+write.csv(CRWAfinal, file = "CRWAfinal.csv")
 ```
 
 ### CRPD
@@ -400,6 +414,7 @@ CRPDAmmonia <- read_sheet('https://docs.google.com/spreadsheets/d/1_kNmoQZGYHPl2
 CRPDDissolvedOxygen <- read_sheet('https://docs.google.com/spreadsheets/d/1_kNmoQZGYHPl2WIFnaRyezArj6fqWIYX7enTjzOKwH0/edit?usp=sharing', range = 'Dissoloved Oxygen')
 
 CRPDEColi <- read_sheet('https://docs.google.com/spreadsheets/d/1_kNmoQZGYHPl2WIFnaRyezArj6fqWIYX7enTjzOKwH0/edit?usp=sharing', range = 'EColi')
+
 ```
 
 ```{r}
@@ -432,12 +447,214 @@ MDPH <- read_sheet('https://docs.google.com/spreadsheets/d/1a6U6dOQEYg8FF1lN6Kjc
 ### MWRA CSO Data
 
 ```{r}
+
+MWRACSOData2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1BF5lMyYrnILoS-rySwTGILiaqYfxA5-Pz5P2xUmOIq8/edit?usp=sharing')
+
 MWRACSOData <- read_sheet('https://docs.google.com/spreadsheets/d/1PRu1yvIuxOnMyazAVkXGv7dkOKUClNxl7CrvrctPREU/edit?usp=sharing')
+
+
+
 ```
 
 ```{r}
+
+
+#Extract Date
+MWRACSOData$Date <- as.Date(MWRACSOData$`Start Time`, format = "%m/%d/%Y")
+
+
+#Remove Excess Charecters
+
+#Remove "Treated" in Volume Column
+MWRACSOData$`Volume (MG)` <- gsub("Treated","",as.character(MWRACSOData$`Volume (MG)`))
+
+#Remove "min" in Minutes Column
+
+MWRACSOData$Minutes <- gsub("min","",as.character(MWRACSOData$Minutes))
+
+#Remove Rows w/ "*"
+MWRACSOData <- MWRACSOData %>% filter(!grepl("\\*", MWRACSOData$Duration))
+
+#Replace NA w/ 0
+MWRACSOData$Minutes[is.na(MWRACSOData$Minutes)] <- 0
+
+#Make Duration Column
+MWRACSOData$Minutes <- as.numeric(MWRACSOData$Minutes)
+MWRACSOData$Hours <- as.numeric(MWRACSOData$Hours)
+
+MWRACSOData$CombinedMinutes <- MWRACSOData$Minutes + (MWRACSOData$Hours * 60)
+
+#Remove Columns 
+
+MWRACSOData <- MWRACSOData[-c(4:10)]
+
+#Check Dates
+
+unique_dates <- unique(MWRACSOData$Date)
+
+
+# Sanity Check: CombinedMinutes to numeric and Date to Date format
+MWRACSOData <- MWRACSOData %>%
+  mutate(CombinedMinutes = as.numeric(CombinedMinutes),
+         Date = as.Date(Date))
+
+MWRACSOData <- MWRACSOData %>%
+  mutate(`Volume (MG)` = as.numeric(`Volume (MG)`),
+         Date = as.Date(Date))
+
+# Group by Date and calculate the sum of CombinedMinutes
+
+
+
+MWRACSOData2 <- 
+aggregate(MWRACSOData$CombinedMinutes, by=list(MWRACSOData$Date, MWRACSOData$`Outfall Location`), FUN = sum) 
+
+
+MWRACSOData3 <- 
+aggregate(MWRACSOData$`Volume (MG)`, by=list(MWRACSOData$Date, MWRACSOData$`Outfall Location`), FUN = sum) 
+
+MWRACSOData20162 <- 
+aggregate(MWRACSOData2016$`Duration (Min)`, by=list(MWRACSOData2016$Date, MWRACSOData2016$CSOName), FUN = sum) 
+
+MWRACSOData20163 <- 
+aggregate(MWRACSOData2016$`Volume (MG)`, by=list(MWRACSOData2016$Date, MWRACSOData2016$CSOName), FUN = sum) 
+
+
+# Rename a column using colnames
+
+colnames(MWRACSOData2)[1:3] <- c("Date","Outfall Location", "Total Minutes")
+
+colnames(MWRACSOData20162)[1:3] <- c("Date","Outfall Location", "Total Minutes")
+
+colnames(MWRACSOData3)[1:3] <- c("Date","Outfall Location", "Volume")
+
+colnames(MWRACSOData20163)[1:3] <- c("Date","Outfall Location", "Volume")
+
+#Set Columns to Be The Same
+
+MWRACSOData <- MWRACSOData[-c(1,4,5,7)]
+
+MWRACSOData2016 <- MWRACSOData2016[-c(3:8)]
+
+
+
+
+#Make New Names
+
+MWRA_new_names <- c(
+  "CSO_ID",
+  "Outfall Location",
+  "Date"
+)
+
+MWRA2016_new_names <- c(
+  "CSO_ID",
+  "Outfall Location",
+  "Date"
+)
+
+MWRACSOData <- MWRACSOData %>% 
+  set_names(MWRA_new_names)
+  
+MWRACSOData2016 <- MWRACSOData2016 %>% 
+  set_names(MWRA2016_new_names)
+
+#Fix Date Format
+
+MWRACSOData$Date <- format(as.Date(MWRACSOData$Date, format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+#Merge Columns 
+
+MergedMWRACSO <- rbind(MWRACSOData,MWRACSOData2016)
+
+#Order Date
+
+MergedMWRACSO[order(as.Date(MergedMWRACSO$Date, format="%m/%d/%Y")),]
+
+#Fix Date Formats of Future Joins
+MWRACSOData2$Date <- format(as.Date(MWRACSOData2$Date, format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+
+MWRACSOData3$Date <- format(as.Date(MWRACSOData3$Date, format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+# Perform the joins
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData2[, c("Date", "Outfall Location", "Total Minutes")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData20162[, c("Date", "Outfall Location", "Total Minutes")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+# Combine the columns using coalesce
+MergedMWRACSO <- MergedMWRACSO %>%
+  mutate(TotalMinutes_combined = coalesce(`Total Minutes.x`, `Total Minutes.y`))
+
+
+# Drop the individual columns if you no longer need them
+MergedMWRACSO <- MergedMWRACSO %>%
+  select(-`Total Minutes.x`, -`Total Minutes.y`)
+
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData3[, c("Date", "Outfall Location", "Volume")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData20163[, c("Date", "Outfall Location", "Volume")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+MergedMWRACSO <- MergedMWRACSO %>%
+  mutate(Volume_combined = coalesce(`Volume.x`, `Volume.y`))
+
+
+# Drop the individual columns if you no longer need them
+MergedMWRACSO <- MergedMWRACSO %>%
+  select(-`Volume.x`, -`Volume.y`)
+
+
+```
+
+#Need to Add "Data Collection Ends at 2020" Column
+
+```{r}
+
 MWRACSOCoords <- read_sheet('https://docs.google.com/spreadsheets/d/1O9RONCW0lGEsPrt-srZU8M4xeNxDM3hJmkA1IWL2mW4/edit?usp=sharing')
 
+MWRACSOCoords2 <- read_sheet('https://docs.google.com/spreadsheets/d/18PK0CcX6Ye5RZJtVUI8mmiaRwLIpRNIzGCwOupSqf-k/edit?usp=sharing')
+
+
+```
+
+```{r}
+
 MWRACSOFinal <-  
-left_join(MWRACSOData , MWRACSOCoords ,  by = c("CSO Number" = "OUTFALL"  ))
+left_join(MergedMWRACSO , MWRACSOCoords ,  by = c("CSO_ID" = "OUTFALL"  ))
+
+#MWRACSOCoords2$OUTFALL_ID <- as.character(MWRACSOCoords2$OUTFALL_ID )
+
+#MWRACSOFinal <-  
+#left_join(MergedMWRACSO , MWRACSOCoords2 ,  by = c("CSO_ID" = "OUTFALL_ID"  ))
+```
+
+```{r}
+write_csv(MWRACSOFinal, file = "MWRACSOs.csv") 
+```
+
+### 
+
+### Precip
+
+```{r}
+
+```
+
+### CAMCSO
+
+```{r}
+CAMCSO2015 <- read_sheet('https://docs.google.com/spreadsheets/d/1TWsZX6Mqtobc_Ty6TOqNnk3uJ_XYa3eR_uh-OOqPo_I/edit?usp=sharing')
 ```
