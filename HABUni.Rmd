@@ -379,7 +379,6 @@ tail(cbind(smap$predictions, smap$coefficients))
 find out multivariate
 
 ```{r}
-#**Deyle** 
 
 cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 2, columns = "chl", target = "turb", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
 
