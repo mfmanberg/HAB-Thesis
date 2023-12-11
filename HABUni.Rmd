@@ -5,6 +5,7 @@ date: "2023-10-26"
 editor_options: 
   markdown: 
     wrap: 72
+  chunk_output_type: console
 ---
 
 ## Library + Vignette
@@ -134,40 +135,83 @@ ag_df_CR %>% group_by(date) %>%
   geom_path(aes(y=do,color="do")) +
   geom_path(aes(y=turb,color="turb"))
 
+#RS Project - 2021
 
+ag_df_CR %>% 
+  mutate(date = as.Date(date)) %>%
+   group_by(date) %>%
+filter(date >= as.Date("2021-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl, color="chl")) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    ggtitle("EPA Buoy Chlorophyll 2021")  +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(x = "Month", y = "Cholorophyll (RFU)")
 
+#August
+ag_df_CR %>%
+  mutate(date = as.Date(date)) %>%
+  group_by(date) %>%
+  filter(month(date) == 8, year(date) == 2021) %>%
+  ggplot(aes(x = date)) + 
+  geom_path(aes(y = chl, color = "chl")) +
+  scale_x_date(date_labels = "%d", date_breaks = "1 day") +  # Display dates explicitly
+  ggtitle("EPA Buoy Chlorophyll August 2021")  +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(x = "Day", y = "Cholorophyll (RFU)")
+  
+  
+selected_day <- as.Date("2021-08-15")
+
+# Filter the data for the selected day
+
+selected_value <- ag_df_CR %>%
+  filter(date == selected_day) %>%
+  pull(chl) + print(selected_value)
+
+cat("Chlorophyll value on", selected_day, "is", selected_value, "\n")
+  
+#RS Project - 2021
+
+ag_df_CR %>% 
+  mutate(date = as.Date(date)) %>%
+   group_by(date) %>%
+filter(date >= as.Date("2022-05-01") & date <= as.Date("2022-11-01"))  %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl, color="chl")) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    ggtitle("EPA Buoy Chlorophyll 2022")  +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(x = "Month", y = "Cholorophyll (RFU)")
+
+  
 ```
 
 ```{r}
 #Add Buoy Cords 
 
-ag_df_CR$Latitude <- 42.366852 
-ag_df_CR$Longitude<- -71.072067
+#ag_df_CR$Latitude <- 42.366852 
+#ag_df_CR$Longitude<- -71.072067
 ```
 
 ```{r}
 #Save CSV
 
-write_csv(ag_df_CR, file = "ag_df_CR.csv") 
-```
-
-```{r}
-
-#finish s-map + simplex predictions 
-
-#look at max paper time periods of predictions
-
-
+#write_csv(ag_df_CR, file = "ag_df_CR.csv") 
 ```
 
 ## EDM Uni-variate Analysis
 
-RUN on mutliple
-
-### Optimal Embedding Dimension
+Read Data + Find Parameters
 
 ```{r}
+#READ DATA
+ag_df_CR <- read.csv("C:/Users/mfman/OneDrive/Desktop/HAB-Thesis/ag_df_CR.csv")
 
+ag_df_CR$date <- as.Date(ag_df_CR$date)
+```
+
+```{r}
 
 #Without NA Values
 ag_df_CR <- na.omit(ag_df_CR) 
@@ -175,18 +219,31 @@ ag_df_CR <- na.omit(ag_df_CR)
 # Find the first row number for the first date in 2023
 first_row_2023 <- which(format(ag_df_CR$date, "%Y") == "2023")[1]
 
-first_row_2023
+print(first_row_2023)
 
 # Find the last value 
 last_value <- nrow(ag_df_CR)
 
-last_value
+print(last_value)
 
 ```
 
 ```{r}
+rm(last_value)
+rm(first_row_2023)
+```
 
+### Optimal Embedding Dimension
 
+-   rho_E
+
+    -   E
+
+    -   Rho
+
+**How Do I make this Wider?**
+
+```{r}
 
 rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
 lib = "1 1075", pred = "1076 1223", showPlot = TRUE) #lib train, #pred is pred 
@@ -200,6 +257,12 @@ lib = "1 1075", pred = "1076 1223", showPlot = TRUE) #lib train, #pred is pred
 
 ### Prediction Decay
 
+-   rho_Tp
+
+    -   Tp
+
+    -   Rho
+
 ```{r}
 rho_Tp <- PredictInterval(dataFrame = ag_df_CR, lib = "1 1075", pred = "1076 1223", target = "chl",
 columns = "chl", E = 4)
@@ -210,22 +273,57 @@ columns = "chl", E = 4)
 
 ### S-Map
 
+-   rho_theta_e3
+
+    -   Theta
+
+    -   Rho
+
 ```{r}
-E = 4
+
 rho_theta_e3 = PredictNonlinear(dataFrame = ag_df_CR, columns = "chl",
-target = "chl", lib = "1 1075", pred = "1076 1223", E = E)
+target = "chl", lib = "1 1075", pred = "1076 1223", E = 4)
 
 ```
 
 ### **Evaluate Simplex Prediction**
 
+-   ag_df_CRPredict
+
+    -   Observations
+
+    -   Predictions
+
+    -   Pred_Variance
+
 ```{r}
 
 ag_df_CRPredict <- Simplex(dataFrame = ag_df_CR, lib = "1 1075", pred = "1076 1223", target = "chl",
-columns = "chl", E = 2)
-ComputeError(ag_df_CRPredict$Observations, ag_df_CRPredict$Predictions)$rho
+columns = "chl", E = 4)
+
+#S-Map = Theta
+
+
+
+```
+
+```{r}
+ ComputeError(ag_df_CRPredict$Observations, ag_df_CRPredict$Predictions)
+```
+
+Workspace
+
+```{r}
+
 #hold out 25% of data, 2023 + play around w/ anypart of 2022 (half of 2022?)
 
+#plot(smplx_3CR$Predictions,smplx_3CR$Observations)
+#abline(0,1,lty=2)
+
+#plot(smplx_3CR$date,smplx_3CR$Observations)
+#points(smplx_3CR$date,smplx_3CR$Predictions,col=2)
+
+#did sometihng wrong along the way
 ```
 
 ### Evaluate S-Map
@@ -233,17 +331,36 @@ ComputeError(ag_df_CRPredict$Observations, ag_df_CRPredict$Predictions)$rho
 It can be advantageous to combine different time series to create the
 phase-space embedding, providing they are observed from the same system.
 
-```{r}
+-   Smap
 
+    -   predictions
+
+    -   coefficents
+
+    -   singularvalues
+
+    -   
+
+        ```         
+        ∂chl/∂chl(t-1,2,3,4)
+        ```
+
+**#Where does TentMapNoise come from? SMapPredict?**
+
+**Tentmap Noise = Theta?**
+
+**What is columns?**
+
+```{r}
 
  #If θ= 0, all library points have the same weight regardless of the local state of the predictee; 
 
 smap = SMap(dataFrame = ag_df_CR, lib = "1 1075", pred = "1076 1223", target = "chl",
-columns = "chl", E = 2, theta = 0)
+columns = "chl", E = 4, theta = 5)
 
 #if h > θ, the forecast given by the S-map depends on the local state of the predictee, and thus produces locally different fittings.
-smap = SMap(dataFrame = ag_df_CR, lib = "1 1075", pred = "1076 1223", target = "chl",
-columns = "chl", E = 2, theta = 0)
+#smap = SMap(dataFrame = ag_df_CR, lib = "1 1075", pred = "1076 1223", target = "chl",
+#columns = "chl", E = 2, theta = 0)
 
 ```
 
@@ -252,7 +369,10 @@ head(cbind(smap$predictions, smap$coefficients), 2)
 
 tail(cbind(smap$predictions, smap$coefficients))
 
+
 ```
+
+### 
 
 ### Convergent Cross Mapping (CCM)
 
@@ -261,8 +381,7 @@ find out multivariate
 ```{r}
 #**Deyle** 
 
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 3, Tp = 0, columns = "chl", target = "turb", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 2, columns = "chl", target = "turb", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
 
 #tp - 2012 paper 
 ```
@@ -273,26 +392,60 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 3, Tp = 0, columns = "chl", target = "turb
 
 smplx_3CR
 
+### Save as New
+
+`{r}`
+
+```{r}
+block_4CR <- smap$coefficients  v_new_names <- c(   "date",   "C0",   "t-0",   "t-1",   "t-2",   "t-3" )  
+
+block_4CR <- block_4CR %>%   set_names(v_new_names)  
+
+head(block_4CR)
+```
+
+**What is target? t-0?**
+
+smplx_3species
+
+-   observations
+
+-   predicitons
+
+-   pred variance
+
+```{r}
+
+
+smplx_3CR = Simplex(dataFrame = block_4CR, lib = "1 74", pred = "75 149", E = 4, columns = "t-0 t-1 t-2 t-3", target = "t-0", embedded = TRUE)
+
+err = ComputeError(smplx_3CR$Observations, smplx_3CR$Predictions)
+plot(smplx_3CR$Observations, smplx_3CR$Predictions, pch = 19, cex = 0.5,
+xlab = "Observations", ylab = "Predictions", main = "3 CR x_t")
+abline(a = 0, b = 1, lty = 2, col = "blue")
+text(-1, 1, paste(capture.output(cbind(err)), collapse = "\n"))
+```
+
 ```{r}
 #**is this for one variable?**
 
-head(ag_df_CR,3)
+#head(ag_df_CR,3)
 
 #simplexforecasting
 
-smplx_3CR = Simplex(dataFrame = ag_df_CR, lib = "1 100", pred = "101 190",
-E = 2, columns = "ph Celsius chl", target = "chl", embedded = TRUE)
+#smplx_3CR = Simplex(dataFrame = ag_df_CR, lib = "1 100", pred = "101 190",
+#E = 2, columns = "ph Celsius chl", target = "chl", embedded = TRUE)
 #are we using all the columns?
 ```
 
 Plot
 
 ```{r}
-err = ComputeError(smplx_3CR$Observations, smplx_3CR$Predictions)
-plot(smplx_3CR$Observations, smplx_3CR$Predictions, pch = 19, cex = 0.5,
-xlab = "Observations", ylab = "Predictions", main = "3 CR x_t")
-abline(a = 0, b = 1, lty = 2, col = "blue")
-text(-1, 1, paste(capture.output(cbind(err)), collapse = "\n"))
+#err = ComputeError(smplx_3CR$Observations, smplx_3CR$Predictions)
+#plot(smplx_3CR$Observations, smplx_3CR$Predictions, pch = 19, cex = 0.5,
+#xlab = "Observations", ylab = "Predictions", main = "3 CR x_t")
+#abline(a = 0, b = 1, lty = 2, col = "blue")
+#text(-1, 1, paste(capture.output(cbind(err)), collapse = "\n"))
 
 ```
 
@@ -305,8 +458,8 @@ at Tp=1:
 ```{r}
 colnames(ag_df_CR) #pull col names
 head(ag_df_CR)
-smap_CR <- SMap(dataFrame = ag_df_CR, lib = "1 500", pred = "601 900", E = 2,
-theta = 3, columns = "chl phy ph Celsius spcond do turb", target = "chl", embedded = TRUE)
+smap_CR <- SMap(dataFrame = ag_df_CR, lib = "1 500", pred = "601 900", E = 4,
+theta = 5, columns = "chl phy ph Celsius spcond do turb", target = "chl", embedded = TRUE)
 ```
 
 ```{r}
