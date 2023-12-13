@@ -1,0 +1,678 @@
+---
+title: "3hrUni"
+output: html_document
+date: "2023-12-13"
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+---
+title: "HAB_Uni.rmd"
+output: html_document
+date: "2023-10-26"
+editor_options: 
+  markdown: 
+    wrap: 72
+  chunk_output_type: console
+---
+
+## Library + Vignette
+
+```{r}
+library(rEDM)
+library(tidyverse)
+library(googlesheets4)
+library(tidyverse)
+library(padr)
+library(zoo)
+library(oce)
+```
+
+```{r}
+vignette('rEDM-tutorial')
+```
+
+## Data Wrangling
+
+```{r}
+#Charles River
+#Reads data into R
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/18xDJ9cLaZuj3JqhFsf847nSLMGKjfvWZmHWifsrPBq8/edit?usp=sharing')
+
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+
+#Prints the data
+```
+
+```{r}
+#bind rows
+df_CR <- bind_rows(
+  CR2015,
+  CR2016,
+  CR2017, 
+  CR2018,
+  CR2019,
+  CR2020,
+  CR2021,
+  CR2022,
+  CR2023
+)
+#combine data
+df_CR <- df_CR %>%
+  mutate(hour = pmin(hour(`time est`),hour(`time edt`),na.rm=T),
+         minute = pmin(minute(`time est`),minute(`time edt`),na.rm=T)) %>%
+  select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`, ph=`ph`, Celsius =`temp c`,  spcond = `spcond (ms/cm)`, do = `do (mg/l)`,turb = `turbidity (fnu)` )
+  
+#%>% rename(`time est`=time)
+
+```
+
+
+### Convert to Salinity
+
+```{r}
+
+df_CR$Salinity <- 
+
+  swSCTp(
+  df_CR$spcond,
+df_CR$Celsius,
+  pressure = NULL,
+  "mS/cm",
+  eos = getOption("oceEOS", default = "gsw")
+)
+
+```
+
+
+```{r}
+
+#CSV will read but not write
+
+getwd()
+
+read.csv("C:/Users/mfman/OneDrive/Desktop/HAB-Thesis/df_CR.csv")
+#read.csv 
+
+
+write.csv(df_CR, file = "C:/Users/mfman/OneDrive/Desktop/HAB-Thesis/df_CR.csv")
+
+
+
+```
+
+
+
+```{r}
+#keep only hrs 9-12
+
+df_CR <- df_CR %>%
+  filter(hour %in% c(9, 10, 11, 12))
+
+```
+
+```{r}
+
+#Aggregate Values Daily
+
+ag_df_CR <-df_CR %>%
+   group_by(date) %>%
+  summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
+
+
+```
+
+
+#add rows w/ missing NA values
+
+```{r}
+
+df_CR <- df_CR %>% pad()
+
+```
+
+#time-series+ggplot - chl + phy, Non-Aggregated
+
+```{r}
+df_CR %>% group_by(date,hour) %>%
+  filter(year(date) >= 2021) %>%
+  summarise(across(c("chl","phy"),mean),.groups="keep") %>%
+  mutate(date= date+hours(hour)) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl")) + 
+  geom_path(aes(y=phy,color="phy")) 
+```
+
+#Plot Non-Aggregated data
+
+```{r}
+df_CR %>% group_by(date,hour) %>%
+  filter(year(date) >= 2021) %>%
+  summarise(across(c("chl","phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity"),mean),.groups="keep") %>%
+  mutate(date= date+hours(hour)) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl")) + 
+  geom_path(aes(y=phy,color="phy")) +
+  geom_path(aes(y=ph,color="ph")) + 
+  geom_path(aes(y=Celsius,color="Celsius")) +
+  geom_path(aes(y=spcond,color="spcond")) +
+  geom_path(aes(y=do,color="do")) +
+  geom_path(aes(y=turb,color="turb")) +
+ geom_path(aes(y=Salinity,color="Salinity")) 
+```
+
+**Cannot Run without daily values**
+
+```{r}
+
+#Convert Multiple Columns to Date Time
+
+#df_CR$datetime <- as.POSIXct(paste(df_CR$date, df_CR$hour, df_CR$minute, sep = " "),
+                                 # format = "%Y-%m-%d %H %M")
+
+#morn_dfCR <- df_CR[,c(4:12)]
+
+```
+
+
+
+#Take Away NA Values + Aggregate Daily Mean
+
+```{r}
+
+#Take away NA values
+df_CR <- na.omit(df_CR) 
+
+
+#Omit NA Values
+ag_df_CR <- ag_df_CR %>% pad()
+
+#Plot
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) >= 2021) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl")) + 
+  geom_path(aes(y=phy,color="phy")) +
+  geom_path(aes(y=ph,color="ph")) + 
+  geom_path(aes(y=Celsius,color="Celsius")) +
+  geom_path(aes(y=spcond,color="spcond")) +
+  geom_path(aes(y=do,color="do")) +
+  geom_path(aes(y=turb,color="turb")) +
+   geom_path(aes(y=Salinity,color="Salinity"))
+
+
+#Visualize Salinity 2021 
+
+ag_df_CR %>%
+  mutate(date = as.Date(date)) %>%
+  group_by(date) %>%
+  filter(date >= as.Date("2021-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x = date)) + 
+  geom_path(aes(y = Salinity, color = "Salinity")) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  ggtitle("Salinity 2021") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x = "Month", y = "Salinity")
+
+#Visualize Chl 2021 
+
+ag_df_CR %>%
+  mutate(date = as.Date(date)) %>%
+  group_by(date) %>%
+  filter(date >= as.Date("2021-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x = date)) + 
+  geom_path(aes(y = chl, color = "chl")) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  ggtitle("Chl 2021") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x = "Month", y = "Chl")
+  
+```
+
+## EDM Uni-variate Analysis
+
+Read Data + Find Parameters
+
+```{r}
+#READ DATA
+#ag_df_CR <- read.csv("C:/Users/mfman/OneDrive/Desktop/HAB-Thesis/ag_df_CR.csv")
+
+#ag_df_CR$date <- as.Date(ag_df_CR$date)
+```
+
+```{r}
+
+#Without NA Values
+#morn_dfCR <- na.omit(morn_dfCR) 
+
+ag_df_CR <- na.omit(ag_df_CR) 
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(ag_df_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(ag_df_CR)
+
+print(last_value)
+
+```
+
+```{r}
+rm(last_value)
+rm(first_row_2023)
+```
+
+### Optimal Embedding Dimension
+
+-   rho_E
+
+    -   E
+
+    -   Rho
+
+
+**Replace Rho_AR with preds_AR?**
+
+```{r}
+lib_ins <- c(1,1025) # data up through end of 2022; this is the training set
+lib_oos <- c(1026,1172) # leave this alone until we're nearly done with the project
+
+rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(rho_AR$predictions$Observations,
+                         rho_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+
+#rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+#lib = "1 1075", pred = "1076 1223", showPlot = TRUE) #lib train, #pred is pred 
+
+#lib = "1 100 101 200 301 400", - leaving one out
+
+```
+
+"At a daily time-scale, EDM predictions do not beat the strong
+day-to-day autocorrelation in the signal." This is no surprise. Let's
+look again with a larger tau, informed by the previous ACF analysis; we
+saw a signal somewhere in the window of 4 days - 1 week.
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=6,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+**E = 6 here?**
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                                    E=6,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+1 week:
+
+```{r}
+tau_i <- 7
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                                    E=5,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+### Prediction Decay
+
+-   rho_Tp
+
+    -   Tp
+
+    -   Rho
+
+```{r}
+rho_Tp <- PredictInterval(dataFrame = ag_df_CR, lib = lib_ins, pred = lib_ins, target = "chl",
+columns = "chl", E = 6)
+#long-term memory in system (ACF), long term -persistent auto-correlation 
+
+
+```
+
+### S-Map
+
+-   rho_theta_e3
+
+    -   Theta
+
+    -   Rho
+
+```{r}
+
+rho_theta_e3 = PredictNonlinear(dataFrame = ag_df_CR, columns = "chl",
+target = "chl", lib = lib_ins, pred = lib_ins, E = 4)
+
+```
+
+### **Evaluate Simplex Prediction**
+
+-   ag_df_CRPredict
+
+    -   Observations
+
+    -   Predictions
+
+    -   Pred_Variance
+
+```{r}
+
+ag_df_CRPredict <- Simplex(dataFrame = ag_df_CR,lib = lib_ins, pred = lib_ins, pred = "1076 1223", target = "chl",
+columns = "chl", E = 4)
+
+#S-Map = Theta
+
+
+
+```
+
+```{r}
+ ComputeError(ag_df_CRPredict$Observations, ag_df_CRPredict$Predictions)
+```
+
+
+```
+
+### Evaluate S-Map
+
+It can be advantageous to combine different time series to create the
+phase-space embedding, providing they are observed from the same system.
+
+-   Smap
+
+    -   predictions
+
+    -   coefficents
+
+    -   singularvalues
+
+    -   
+
+        ```         
+        ∂chl/∂chl(t-1,2,3,4)
+        ```
+
+**#Where does TentMapNoise come from? SMapPredict?**
+
+**Tentmap Noise = Theta?**
+
+**What is columns?**
+
+```{r}
+
+ #If θ= 0, all library points have the same weight regardless of the local state of the predictee; 
+
+smap = SMap(dataFrame = ag_df_CR, lib = lib_ins, pred = lib_ins, target = "chl",
+columns = "chl", E = 4, theta = 5)
+
+#if h > θ, the forecast given by the S-map depends on the local state of the predictee, and thus produces locally different fittings.
+#smap = SMap(dataFrame = ag_df_CR, lib = "1 1075", pred = "1076 1223", target = "chl",
+#columns = "chl", E = 2, theta = 0)
+
+```
+
+```{r}
+head(cbind(smap$predictions, smap$coefficients), 2)
+
+tail(cbind(smap$predictions, smap$coefficients))
+
+
+```
+
+### 
+
+### Convergent Cross Mapping (CCM)
+
+find out multivariate
+
+```{r}
+#**Deyle** 
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 2, columns = "chl", target = "turb", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+#tp - 2012 paper 
+```
+
+# EDM Mulit-variate Analysis
+
+### Generalized Takens Theorem
+
+smplx_3CR
+
+### Save as New
+
+`{r}`
+
+```{r}
+block_4CR <- smap$coefficients  
+
+_new_names <- c(   "date",   "C0",   "t-0",   "t-1",   "t-2",   "t-3" )  
+
+block_4CR <- block_4CR %>%   set_names(v_new_names)  
+
+head(block_4CR)
+```
+
+**What is target? t-0?**
+
+smplx_3species
+
+-   observations
+
+-   predicitons
+
+-   pred variance
+
+```{r}
+
+
+smplx_3CR = Simplex(dataFrame = block_4CR, lib = "1 74", pred = "75 149", E = 4, columns = "t-0 t-1 t-2 t-3", target = "t-0", embedded = TRUE)
+
+err = ComputeError(smplx_3CR$Observations, smplx_3CR$Predictions)
+plot(smplx_3CR$Observations, smplx_3CR$Predictions, pch = 19, cex = 0.5,
+xlab = "Observations", ylab = "Predictions", main = "3 CR x_t")
+abline(a = 0, b = 1, lty = 2, col = "blue")
+text(-1, 1, paste(capture.output(cbind(err)), collapse = "\n"))
+```
+
+```{r}
+#**is this for one variable?**
+
+#head(ag_df_CR,3)
+
+#simplexforecasting
+
+#smplx_3CR = Simplex(dataFrame = ag_df_CR, lib = "1 100", pred = "101 190",
+#E = 2, columns = "ph Celsius chl", target = "chl", embedded = TRUE)
+#are we using all the columns?
+```
+
+Plot
+
+```{r}
+#err = ComputeError(smplx_3CR$Observations, smplx_3CR$Predictions)
+#plot(smplx_3CR$Observations, smplx_3CR$Predictions, pch = 19, cex = 0.5,
+#xlab = "Observations", ylab = "Predictions", main = "3 CR x_t")
+#abline(a = 0, b = 1, lty = 2, col = "blue")
+#text(-1, 1, paste(capture.output(cbind(err)), collapse = "\n"))
+
+```
+
+### S-Map Coefficents
+
+The Lorenz5D data.frame contains a N=5 dimensional system with F=8 from
+(Lorenz 1996). Here, we use SMap() to compute a 4-dimensional forecast
+at Tp=1:
+
+```{r}
+colnames(ag_df_CR) #pull col names
+head(ag_df_CR)
+smap_CR <- SMap(dataFrame = ag_df_CR, lib = "1 500", pred = "601 900", E = 4,
+theta = 5, columns = "chl phy ph Celsius spcond do turb", target = "chl", embedded = TRUE)
+```
+
+```{r}
+head(cbind(smap_CR$predictions, smap_CR$coefficients[, 2:6]), 3)
+
+```
+
+```{r}
+#**review w/ Deyle**
+#View(predictions)
+predictions = smap_CR$predictions
+coefficients = smap_CR$coefficients
+Time = predictions$Time
+plot(Time, predictions$Observations, type = "l", col = "blue", ylab = "chl", xlab = "",
+lwd = 2, cex.lab = 1.3, cex.axis = 1.3)
+lines(Time, predictions$Predictions, lwd = 2, col = "red")
+legend("topright", legend = c("observed", "predicted"), fill = c("blue", "red"),
+bty = "n", cex = 1.3)
+
+plot(Time, coefficients[, 6], type = "l", col = "brown", ylab = paste("", "V4/",
+"", "chl", sep = ""), xlab = "", lwd = 2, cex.lab = 1.3, cex.axis = 1.3)
+
+plot(Time, coefficients[, 5], type = "l", col = "darkgreen", ylab = paste("",
+"V3/", "", "chl", sep = ""), xlab = "", lwd = 2, cex.lab = 1.3, cex.axis = 1.3)
+
+plot(Time, coefficients[, 4], type = "l", col = "blue", ylab = paste("", "V2/",
+"", "chl", sep = ""), xlab = "", lwd = 2, cex.lab = 1.3, cex.axis = 1.3)
+
+```
+
+```{r}
+Mview = Multiview(dataFrame = df_CR, lib = "1 100", pred = "101 190", E = 3,
+columns = "chl phy ph Celsius spcond do turb", target = "chl")
+```
+
+```{r}
+Mview$View[which(Mview$View$rho > 0.91), ]
+```
+
+### 
