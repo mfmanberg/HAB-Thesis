@@ -1,0 +1,309 @@
+---
+title: "HAB_CCM"
+output: html_document
+date: "2024-02-01"
+---
+###Get Phy 
+
+```{r}
+#Charles River
+#Reads data into R
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/18xDJ9cLaZuj3JqhFsf847nSLMGKjfvWZmHWifsrPBq8/edit?usp=sharing')
+
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+
+#Prints the data
+```
+
+```{r}
+#bind rows
+df_CR <- bind_rows(
+  CR2015,
+  CR2016,
+  CR2017, 
+  CR2018,
+  CR2019,
+  CR2020,
+  CR2021,
+  CR2022,
+  CR2023
+)
+#combine data
+df_CR <- df_CR %>%
+  mutate(hour = pmin(hour(`time est`),hour(`time edt`),na.rm=T),
+         minute = pmin(minute(`time est`),minute(`time edt`),na.rm=T)) %>%
+  select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`, ph=`ph`, Celsius =`temp c`,  spcond = `spcond (ms/cm)`, do = `do (mg/l)`,turb = `turbidity (fnu)` )
+  
+#%>% rename(`time est`=time)
+
+```
+
+
+#Aggregate Values Daily
+```{r}
+df_CR$Salinity <- 
+
+  swSCTp(
+  df_CR$spcond,
+df_CR$Celsius,
+  pressure = rep(10.1325,NROW(df_CR)),
+  # "mS/cm",
+"",
+  eos = getOption("oceEOS", default = "gsw")
+)
+
+
+ag_df_CR <-df_CR %>%
+   group_by(date) %>%
+  summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
+
+```
+
+### First Diff Phy
+
+```{r}
+ag_df_CR <- ag_df_CR %>% pad %>%
+mutate(del_phy = phy - lag(phy,1))
+ ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+
+```
+
+
+
+Omit Values?
+
+###Library 
+
+```{r}
+
+#Without NA Values
+
+#morndf_CR <- na.omit(morndf_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(morndf_CR)
+
+print(last_value)
+
+```
+
+
+```{r}
+lib_ins <- c() 
+#  String of 3 whitespace separated integer values specifying the intial library size; the final library size; and the library size increment for CCM.
+
+sample <- 
+  #Integer specifying the number of random samples to draw at each library size evaluation for CCM.
+
+```
+
+###MWRA NONCSO
+
+### MWRA Non-CSO
+
+```{r}
+CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')
+
+
+```
+
+```{r}
+
+## CR_Bacteria 
+v_new_names <- c(
+  "Project_ID",
+  "Region",
+  "Subregion",
+  "DEP_Segment",
+  "Station ID",
+  "Date",
+  "Depth_category",
+  "Sample_depth",
+  "Enterococcus",
+  "Enterococcus_condition",
+  "E_coli",
+  "E_coli_condition",
+  "coliform",
+  "coliform_condition",
+  "Rainfall_1d",
+  "Rainfall_2d",
+  "Rainfall_3d"
+)
+
+colnames(CR_bacteria) <- as.character(CR_bacteria[5,]) #set header
+CR_bacteria <- CR_bacteria[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+
+CR_bacteria <- CR_bacteria %>% 
+  set_names(v_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
+```
+
+
+
+```{r}
+
+#FIX DATE
+
+CR_secchi <- read_sheet('https://docs.google.com/spreadsheets/d/1fW4_60i-SYkdTPlFQQdN0b5nlZirc2uQyjDN_dvWA18/edit?usp=sharing', range = 'cr_secchi')
+colnames(CR_secchi) <- as.character(CR_secchi[5,])#set header
+CR_secchi <- CR_secchi[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+CR_secchi <- CR_secchi %>% 
+       rename("Date" = 6)
+
+#CRPHYSICAL
+CR_physical <- read_sheet('https://docs.google.com/spreadsheets/d/1P5kzPHFABPTKffxM2yQBTIQWq9NAmnGd3PF6kOsSFNU/edit?usp=sharing', range = 'cr_physical')
+colnames(CR_physical) <- as.character(CR_physical[5,])#set header
+CR_physical <- CR_physical[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+CR_physical <- CR_physical %>% 
+       rename("Date" = 6)
+
+#CRNUTRIENTS
+CR_nutrients <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
+colnames(CR_nutrients) <- as.character(CR_nutrients[4,])#set header
+CR_nutrients <- CR_nutrients[-c(1:4), ] #Remove 1st 4 Rows
+#rename columns
+CR_nutrients <- CR_nutrients %>% 
+       rename("Date" = 6)
+
+
+
+
+
+```
+
+```{r}
+MWRAMap_stations <- read_sheet('https://docs.google.com/spreadsheets/d/1UYcDAnvZI8dbvf5ENLHLA8HRtX-Y_epLCfOeUsCB8yQ/edit?usp=sharing', range = 'Map_stations')
+
+```
+
+
+```{r}
+
+#Combine DFs
+
+CR_bacteria <-  right_join(CR_bacteria , MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+
+
+CR_physical <- right_join(CR_physical, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+                          
+CR_secchi <- right_join(CR_secchi, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+
+CR_nutrients <- right_join(CR_nutrients, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+
+
+
+```
+
+```{r}
+CR_bacteria <- data.frame(lapply(CR_bacteria, as.character))
+CR_physical <- data.frame(lapply(CR_physical, as.character))
+CR_secchi <- data.frame(lapply(CR_secchi, as.character))
+CR_nutrients <- data.frame(lapply(CR_nutrients, as.character))
+
+```
+
+```{r}
+
+```
+
+```{r}
+# Assuming your data frame is named MWRACSOFinal and the column with CSO IDs is named CSO_ID
+CR_bacteria_counts <- as.data.frame(table(CR_bacteria$Station.ID))
+
+```
+
+
+###CCM EPA BUOY
+```{r}
+na.omit(ag_df_CR)
+```
+
+
+##PH
+
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "ph", target = "del_phy", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "ph", target = "chl", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+```
+
+##Celsius
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Celsius", target = "del_phy", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Celsius", target = "chl", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+```
+
+##SPCOND
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "spcond", target = "del_phy", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "spcond", target = "chl", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+```
+
+#DO
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "do", target = "del_phy", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "do", target = "chl", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+```
+
+
+#TURB
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "turb", target = "del_phy", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "turb", target = "chl", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+```
+
+
+#Salinity
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Salinity", target = "del_phy", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Salinity", target = "chl", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+```
+
+
+
