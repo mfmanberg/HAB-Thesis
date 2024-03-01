@@ -1,0 +1,820 @@
+---
+title: "HAB_CCM"
+output: html_document
+date: "2024-02-01"
+---
+###Get Phy 
+
+```{r}
+library(tidyverse)
+library(googlesheets4)
+library(oce)
+library(padr)
+library(rEDM)
+
+```
+
+```{r}
+#Charles River
+#Reads data into R
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/18xDJ9cLaZuj3JqhFsf847nSLMGKjfvWZmHWifsrPBq8/edit?usp=sharing')
+
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+
+#Prints the data
+```
+
+```{r}
+#bind rows
+df_CR <- bind_rows(
+  CR2015,
+  CR2016,
+  CR2017, 
+  CR2018,
+  CR2019,
+  CR2020,
+  CR2021,
+  CR2022,
+  CR2023
+)
+#combine data
+df_CR <- df_CR %>%
+  mutate(hour = pmin(hour(`time est`),hour(`time edt`),na.rm=T),
+         minute = pmin(minute(`time est`),minute(`time edt`),na.rm=T)) %>%
+  select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`, ph=`ph`, Celsius =`temp c`,  spcond = `spcond (ms/cm)`, do = `do (mg/l)`,turb = `turbidity (fnu)` )
+  
+#%>% rename(`time est`=time)
+
+```
+
+
+#Aggregate Values Daily
+```{r}
+df_CR$Salinity <- 
+
+  swSCTp(
+  df_CR$spcond,
+df_CR$Celsius,
+  pressure = rep(10.1325,NROW(df_CR)),
+  # "mS/cm",
+"",
+  eos = getOption("oceEOS", default = "gsw")
+)
+
+
+ag_df_CR <-df_CR %>%
+   group_by(date) %>%
+  summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
+
+```
+
+### First Diff Phy
+
+```{r}
+ag_df_CR <- ag_df_CR %>% pad %>%
+mutate(del_phy = phy - lag(phy,1))
+ ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+
+```
+
+
+
+Omit Values?
+
+###Library 
+
+#```{r}
+
+#Without NA Values
+
+#morndf_CR <- na.omit(morndf_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(morndf_CR)
+
+print(last_value)
+
+```
+
+
+#```{r}
+lib_ins <- c() 
+#  String of 3 whitespace separated integer values specifying the intial library size; the final library size; and the library size increment for CCM.
+
+sample <- 
+  #Integer specifying the number of random samples to draw at each library size evaluation for CCM.
+
+```
+
+
+###LOGAN 
+```{r}
+
+Logan <- read_sheet('https://docs.google.com/spreadsheets/d/1h3mNXsGZxB4fhkZQGr2e8z6CxAQtumA5a208-GEYvBw/edit?usp=sharing')
+
+# Convert to POSIXct object
+Logan$DATE <- as.POSIXct(Logan$DATE, format = "%Y-%m-%dT%H:%M:%S")
+
+Logan2 <- Logan
+
+# Remove "s" suffixes from HourlyAltimeterSetting column
+Logan2$HourlyAltimeterSetting <- gsub("s$", "", Logan$HourlyAltimeterSetting)
+
+# Convert HourlyAltimeterSetting to numeric
+Logan$HourlyAltimeterSetting <- as.numeric(Logan$HourlyAltimeterSetting)
+
+
+
+# Convert columns to numeric (excluding DATE)
+numeric_cols <- c("HourlyAltimeterSetting", "HourlyDewPointTemperature", "HourlyDryBulbTemperature",
+                  "HourlyPrecipitation", "HourlyPressureChange", "HourlyPressureTendency",
+                  "HourlyRelativeHumidity", "HourlySeaLevelPressure", "HourlyStationPressure",
+                  "HourlyVisibility", "HourlyWetBulbTemperature", "HourlyWindDirection",
+                  "HourlyWindGustSpeed", "HourlyWindSpeed")
+
+Logan <- Logan %>%
+  mutate(across(all_of(numeric_cols), as.numeric))
+
+
+
+
+
+
+
+
+Logan$HourlySeaLevelPressure <- gsub("s$", "", Logan$HourlySeaLevelPressure)
+
+
+
+
+
+
+
+ag_Logan <- Logan %>%
+  group_by(DATE) %>%
+  summarise(
+    HourlyAltimeterSetting = mean(HourlyAltimeterSetting),
+    HourlyDewPointTemperature = mean(HourlyDewPointTemperature),
+    HourlyDryBulbTemperature = mean(HourlyDryBulbTemperature), 
+    HourlyPrecipitation = sum(HourlyPrecipitation),
+    HourlyPressureChange = mean(HourlyPressureChange),
+    HourlyPressureTendency = mean(HourlyPressureTendency),
+    HourlyRelativeHumidity = mean(HourlyRelativeHumidity), 
+    HourlySeaLevelPressure = mean(HourlySeaLevelPressure),
+    HourlyStationPressure = mean(HourlyStationPressure),
+    HourlyVisibility = mean(HourlyVisibility),
+    HourlyWetBulbTemperature = mean(HourlyWetBulbTemperature), 
+    HourlyWindDirection = mean(HourlyWindDirection), 
+    HourlyWindGustSpeed = mean(HourlyWindGustSpeed), 
+    HourlyWindSpeed = mean(HourlyWindSpeed)
+    
+    )
+
+```
+
+
+
+
+### MWRA Non-CSO
+
+```{r}
+#READ DATA IN
+
+
+CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')
+
+CR_secchi <- read_sheet('https://docs.google.com/spreadsheets/d/1fW4_60i-SYkdTPlFQQdN0b5nlZirc2uQyjDN_dvWA18/edit?usp=sharing', range = 'cr_secchi')
+
+CR_physical <- read_sheet('https://docs.google.com/spreadsheets/d/1P5kzPHFABPTKffxM2yQBTIQWq9NAmnGd3PF6kOsSFNU/edit?usp=sharing', range = 'cr_physical')
+
+CR_nutrients <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
+
+```
+
+```{r}
+#NEW NAMES 
+## CRBacteria 
+Bacteria_new_names <- c(
+  "Project_ID",
+  "Region",
+  "Subregion",
+  "DEP_Segment",
+  "Station ID",
+  "Date",
+  "Depth_category",
+  "Sample_depth",
+  "Enterococcus",
+  "Enterococcus_condition",
+  "E_coli",
+  "E_coli_condition",
+  "coliform",
+  "coliform_condition",
+  "Rainfall_1d",
+  "Rainfall_2d",
+  "Rainfall_3d"
+)
+
+#CRSECCHI
+Secchi_new_names <- c(
+  "Project ID",
+"Region",
+"Subregion",
+"DEP Segment",
+"Station ID",
+"Surface or Bottom",
+"Depth to bottom (m)",
+"Sample depth for TSS (m)",
+"Date",
+"Total Suspended Solids (mg/L)",
+"Total Suspended Solids '<' or '>'",
+"Secchi disk depth (m)"
+)
+
+
+#CRPHYSICAL
+Physical_new_names <- c(
+"Project ID",
+"Region",
+"Subregion",
+"DEP segment",
+"Station ID",
+"Surface or Bottom",
+"Date",
+"Depth of measurement (m)",
+"Temperature (C)",
+"Salinity (PSU)",
+"Specific Conductance (mS/cm)",
+"Dissolved Oxygen (mg/L)",
+"DO Pct Saturation (%)",
+"pH",
+"Turbidity (NTU)")
+
+
+
+#CRNUTRIENTS
+Nutrients_new_names <- c(
+
+"Project ID",
+"Region",
+"Subregion",
+"DEP segment",
+"Station ID",
+"Date",
+"Surface or Bottom",
+"Sample depth (m)",
+"Ammonium (uM)",
+"Ammonium '<' or '>'",
+"Nitrate+nitrite (uM)",
+"Nitrate+nitrite  '<' or '>'",
+"Total dissolved N (uM)",
+"Total dissolved N  '<' or '>'",
+"Particulate nitrogen (uM)",
+"Particulate nitrogen  '<' or '>'",
+"Total Kjeldahl Nitrogen (uM)",
+"TKN '<' or '>'",
+"Phosphate (uM)",
+"Phosphate '<' or '>'",
+"Total dissolved P (uM)",
+"Total dissolved P '<' or '>'",
+"Particulate P (uM)",
+"Particulate P '<' or '>'",
+"Total phosphorus (uM)",
+"Total phosphorus '<' or '>'",
+"Particulate carbon (uM)",
+"Particulate carbon     '<' or '>'",
+"Chlorophyll a (ug/L)",
+"Chlorophyll '<' or '>'",
+"Phaeophytin (ug/L)",
+"Phaeophytin '<' or '>'"
+)
+
+#Initial Data Wrangle 
+
+#CRBACTERIA
+#colnames(CR_bacteria) <- as.character(CR_bacteria[5,]) #set header
+#CR_bacteria <- CR_bacteria[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+
+CR_bacteria <- CR_bacteria %>% 
+  set_names(Bacteria_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
+
+
+#CR SECCHI
+
+#colnames(CR_secchi) <- as.character(CR_secchi[5,]) #set header
+#CR_secchi <- CR_secchi[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+
+CR_secchi <- CR_secchi %>% 
+  set_names(Secchi_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
+
+
+#CRPHYSICAL
+
+#colnames(CR_physical) <- as.character(CR_physical[5,]) #set header
+#CR_physical <- CR_physical[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+
+CR_physical <- CR_physical %>% 
+  set_names(Physical_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
+
+#CRNUTRIENTS
+#colnames(CR_nutrients) <- as.character(CR_nutrients[5,]) #set header
+#CR_nutrients <- CR_nutrients[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+
+CR_nutrients <- CR_nutrients %>% 
+  set_names(Nutrients_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
+
+
+```
+
+
+```{r}
+
+#SITE SELECTION
+
+#CR_bacteria
+CR_bacteria_011 <- subset(CR_bacteria, CR_bacteria$`Station ID` == "011")
+
+
+#CR_nutrients
+
+CR_nutrients_166 <- subset(CR_nutrients, CR_nutrients$`Station ID` == "166")
+
+#CR_physical
+CR_physical_011 <- subset(CR_physical, CR_physical$`Station ID` == "011")
+
+
+#CR_secchi
+
+CR_secchi_011 <- subset(CR_secchi, CR_secchi$`Station ID` == "011")
+
+#AGGREGATE DAILY
+
+#CR_bacteria
+
+ag_CR_bacteria <-CR_bacteria_011 %>%
+   group_by(Date) %>%
+  summarise(Enterococcus = mean(Enterococcus), E_coli = mean(E_coli), coliform = mean(coliform))
+
+#CR_nutrients
+
+ag_CR_nutrients <- CR_nutrients_166 %>%
+   group_by(Date) %>%
+  summarise(`Ammonium (uM)` = mean(`Ammonium (uM)`), `Nitrate+nitrite (uM)` = mean(`Nitrate+nitrite (uM)`), `Phosphate (uM)` = mean(`Phosphate (uM)`), `Total phosphorus (uM)` = mean(`Total phosphorus (uM)`, `Chlorophyll a (ug/L)` = mean(`Chlorophyll a (ug/L)`, `Phaeophytin (ug/L)` = mean(`Phaeophytin (ug/L)`)) ))
+
+
+#CR_physical
+
+ag_CR_physical <-CR_physical_011 %>%
+   group_by(Date) %>%
+  summarise(`Temperature (C)` = mean(`Temperature (C)`), `Salinity (PSU)` = mean(`Salinity (PSU)`), `Specific Conductance (mS/cm)` = mean(`Specific Conductance (mS/cm)`), `Dissolved Oxygen (mg/L)` = mean(`Dissolved Oxygen (mg/L)`), `DO Pct Saturation (%)` = mean(`DO Pct Saturation (%)`), `pH` = mean(`pH`), `Turbidity (NTU)` = mean(`Turbidity (NTU)`) ) 
+            
+
+
+#CR_secchi
+
+ag_CR_secchi <-CR_secchi_011 %>%
+   group_by(Date) %>%
+  summarise(`Total Suspended Solids (mg/L)`= mean(`Total Suspended Solids (mg/L)`), `Secchi disk depth (m)` = mean(`Secchi disk depth (m)`))
+
+
+
+
+
+```
+
+
+
+
+###CAMCSO
+
+```{r}
+
+CAM2015CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2015CAMCSO')
+
+
+CAM2016CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2016CAMCSO')
+
+CAM2016CSO <- subset(CAM2016CSO, select = c("Date", "CAM017* (MG)"))
+
+
+
+CAM2017CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2017CAMCSO')
+
+
+CAM2017CSO <- subset(CAM2017CSO, select = c("Date", "CAM017* (MG)"))
+
+
+
+
+CAM2018CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2018CAMCSO')
+
+
+CAM2018CSO <- subset(CAM2018CSO, select = c("Date", "CAM017* (MG)"))
+
+CAM2019CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2019CAMCSO')
+
+
+
+CAM2019CSO <- subset(CAM2019CSO, select = c("Date", "CAM017* (MG)"))
+
+CAM2020CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2020CAMCSO')
+
+
+CAM2020CSO <- subset(CAM2020CSO, select = c("Date", "CAM017* (MG)"))
+
+CAM2021CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2021CAMCSO')
+
+
+CAM2021CSO <- subset(CAM2021CSO, select = c("Date", "CAM017* (MG)"))
+
+CAM2022CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2022CAMCSO')
+
+CAM2022CSO <- subset(CAM2022CSO, select = c("Date", "CAM017* (MG)"))
+
+
+```
+
+```{r}
+# Combine all values into a single vector and sort them
+
+library(dplyr)
+
+# Ensure column names are consistent across all data frames
+colnames(CAM2015CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2016CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2017CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2018CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2019CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2020CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2021CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2022CSO) <- c("Date", "CAM017* (MG)")
+
+CAM2015CSO$`CAM017* (MG)` <- as.numeric(CAM2015CSO$`CAM017* (MG)`)
+CAM2016CSO$`CAM017* (MG)` <- as.numeric(CAM2016CSO$`CAM017* (MG)`)
+CAM2017CSO$`CAM017* (MG)` <- as.numeric(CAM2017CSO$`CAM017* (MG)`)
+CAM2018CSO$`CAM017* (MG)` <- as.numeric(CAM2018CSO$`CAM017* (MG)`)
+CAM2019CSO$`CAM017* (MG)` <- as.numeric(CAM2019CSO$`CAM017* (MG)`)
+CAM2020CSO$`CAM017* (MG)` <- as.numeric(CAM2020CSO$`CAM017* (MG)`)
+CAM2021CSO$`CAM017* (MG)` <- as.numeric(CAM2021CSO$`CAM017* (MG)`)
+CAM2022CSO$`CAM017* (MG)` <- as.numeric(CAM2022CSO$`CAM017* (MG)`)
+
+
+# Make sure that the "CAM017* (MG)" column is of type double
+
+
+CAM017 <- bind_rows(
+ CAM2016CSO,
+  CAM2017CSO, 
+  CAM2018CSO,
+  CAM2019CSO,
+  CAM2020CSO,
+  CAM2021CSO,
+  CAM2022CSO,
+)
+
+
+CAM017 <- CAM017 %>% rename(MG = `CAM017* (MG)`)
+
+CAM017_discharges <- subset(CAM017, MG != 0)
+
+
+
+```
+
+    
+###CCM LOGAN
+
+#HourlyAltimeterSetting
+
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyAltimeterSetting", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyAltimeterSetting", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyDryBulbTemperature
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyPrecipitation
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyPressureChange
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureChange", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureChange", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyPressureTendency
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureTendency", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureTendency", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#HourlyRelativeHumidity
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyRelativeHumidity", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = " HourlyRelativeHumidity", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#HourlySeaLevelPressure
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlySeaLevelPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlySeaLevelPressure", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#HourlyStationPressure
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#HourlyVisibility
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyWindDirection
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyWindGustSpeed
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyWindSpeed
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+
+###CCM EPA BUOY
+```{r}
+na.omit(ag_df_CR)
+```
+
+CCM LibSizes Explained
+- CCM is wraps a bunch of straps for doing cross map prediction for subsets of the data
+- result is plotted is Cross Map Skill as amount of data used (L library size) 
+                  - number of attractor points 
+
+- expect quasi logistic saturation, log spaced 
+
+
+libSizes - 20 200  10 sequence of libsizes to test, x values in CCM curve
+Sample - 
+this is where you do bootstrap, subsets of data ex: 100, do 100 n number of random resamples
+
+##PH
+
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "ph", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+##Celsius
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Celsius", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Celsius", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+##SPCOND
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "spcond", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "spcond", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#DO
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "do", target = "del_phy", libSizes = "20 200 10 ", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "do", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#TURB
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "turb", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "turb", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#Salinity
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Salinity", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Salinity", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#CCM CAMCSO
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "MG", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "MG", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+
+#CCM MWRA Non-CSO
+
+***CR_bacteria***
+
+
+#Enteroccus 
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "Enteroccus", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#E_coli 
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+***CR_Secchi***
+
+
+
+#Total Suspended Solids (mg/L)
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+***CR_Nutrients ***
+
+#Ammonium (uM)
+
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#"Nitrate+nitrite (uM)"
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#Phosphate (uM)   
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#Total phosphorus (uM)
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```

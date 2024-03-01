@@ -123,6 +123,19 @@ df_CR %>%
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(x = "Month", y = "Chlorophyll (RFU)")
   
+
+#Visualize Phy 2021 
+
+df_CR %>%
+  mutate(date = as.Date(date)) %>%
+  group_by(date) %>%
+  filter(date >= as.Date("2021-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x = date)) + 
+  geom_path(aes(y = chl, color = "phy")) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  ggtitle("Phycocanin 2021") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x = "Month", y = "Phycocanin (RFU)")
 ```
 
 #add rows w/ missing NA values
@@ -219,7 +232,30 @@ theme(plot.title = element_text(hjust = 0.5)) +
   ggtitle("All EPA Buoy Vars")
 ```
 
-###PCF
+
+
+### Coefficients of Correlation Non - Aggregatted
+
+```{r}
+
+df_CR <- na.omit(df_CR)
+describe(df_CR)  #this will flag those variables that are categorical with an asterix
+numericag <- char2numeric(df_CR)  #this makes all numeric
+cor_data = cor(numericag)
+cor_data <- cor_data[-c(1),-c(1) ] #remove 1st row + column
+print("Correlation matrix")
+print(cor_data)
+corrplot(cor_data, method="number")
+corrplot(cor_data, method="circle")
+
+
+
+rcorr(as.matrix(numericag[-1,-1]), type = c("pearson"))
+
+
+
+```
+###ACF Non-Aggregated
 
 ```{r}
 df_CR <- na.omit(df_CR)
@@ -239,18 +275,114 @@ ts_phy_2021 <- df_CR %>%
 
 
 length(ts_chl_2021)
-acf(ts_chl_2021,lag.max = 24*30)
+acf(ts_chl_2021,lag.max = 24*30, main = "Cholorophyll Hourly Non-Aggregated ACF")
 abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
 #determine lag -talk to deyle?
-acf(ts_phy_2021,lag.max = 24*30)
+acf(ts_phy_2021,lag.max = 24*30, main = "Phycocanin Hourly Non-Aggregated ACF")
 abline(h = c(0.3,0.6) , col = c("red","red"))
 
+acf(ts_chl_2021,lag.max = 30, main = "Cholorophyll Daily Non-Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 30, main = "Phycocanin Daily Non-Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
 
 
 ## you can check an individual value as follows
 cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
 
 ```
+
+###PACF Non-Aggregated
+
+
+```{r}
+#Take away NA values 
+df_CR <- na.omit(ag_df_CR) 
+pacf(df_CR$chl, lag.max = 7) #test
+
+```
+
+```{r}
+#**CHL**
+
+#1 Week
+pacf2021 <- df_CR %>% 
+  filter(year(date)==2021) %>%
+   group_by(date,hour) %>%
+  pull(chl) %>%
+  pacf(lag.max=10)
+plot(pacf2021, main = "Chlorophyll Non-Aggregatted PACF - 10 Days Hourly")
+
+#**PHY**
+
+#1 day
+pacf2021 <- df_CR %>% 
+  filter(year(date)==2021) %>%
+    group_by(date,hour) %>%
+  pull(phy) %>%
+  pacf(lag.max=10)
+plot(pacf2021, main = "Phycocanin Non-Aggregatted PACF - 10 Days Hourly")
+
+#1 Week
+pacf2021 <- df_CR %>% 
+  filter(year(date)==2021) %>%
+   group_by(date,hour) %>%
+  pull(chl) %>%
+  pacf(lag.max=10)
+plot(pacf2021, main = "Chlorophyll Non-Aggregatted PACF - 10 Days Daily")
+
+#**PHY**
+
+#1 day
+pacf2021 <- df_CR %>% 
+  filter(year(date)==2021) %>%
+    group_by(date,hour) %>%
+  pull(phy) %>%
+  pacf(lag.max=10)
+plot(pacf2021, main = "Phycocanin Non-Aggregatted PACF - 10 Days Daily")
+
+
+
+```
+
+## ARIMA Non-Aggregated
+
+```{r}
+df_CR <- df_CR %>% pad()
+
+class(df_CR )
+df_CR $chl <- as.numeric(df_CR$chl)
+
+#plot(ag_df_CR$date, ag_df_CR$chl) 
+
+#Fit Dataset
+rate <- ts(df_CR [,'chl'],start = c(2015,5), frequency = 365 )
+#Tell the gaps and days 
+
+
+#Grab Data
+autoplot(rate) + ggtitle ("Autoplot - Non-Aggregated ") + ylab("Chlorophyll (RFU)") + theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#Build ARIMA Model - include seasonal autoregressive and seasonal autoregressive moving averages.
+fit_ARIMA <-auto.arima(rate, seasonal = TRUE)
+print(summary(fit_ARIMA))
+checkresiduals(fit_ARIMA)
+
+
+#Forecast
+fcast <- forecast(fit_ARIMA, h =365) #h = amount of periods ahead
+autoplot
+plot(fcast)
+print(summary(fcast))
+
+#Fitting an auto.arima model in R using the Forecast package
+#fit_basic1<- auto.arima(df_CR,xreg=trainREG_TS)
+#forecast_1<-forecast(fit_basic1,xreg = testREG_TS)
+```
+
 
 #Aggreggated Values
 
@@ -268,15 +400,19 @@ ag_df_CR <-df_CR %>%
 ## ARIMA Aggreggated Daily
 
 ```{r}
-ag_df_CR <- na.omit(ag_df_CR)
-
+ag_df_CR <- ag_df_CR  %>% pad()
 
 class(ag_df_CR)
 ag_df_CR$chl <- as.numeric(ag_df_CR$chl)
 
+##CHL
+
 
 #Fit Dataset
 rate <- ts(ag_df_CR[,'chl'],start = c(2015,5), frequency = 365 )
+#Tell the gaps and days 
+
+
 
 #Grab Data
 autoplot(rate) + ggtitle ("Autoplot - Daily Aggregate ") + ylab("Chlorophyll (RFU)") + theme(plot.title = element_text(hjust = 0.5))
@@ -290,7 +426,7 @@ checkresiduals(fit_ARIMA)
 
 
 #Forecast
-fcast <- forecast(fit_ARIMA, h =200) #h = amount of periods ahead
+fcast <- forecast(fit_ARIMA, h =365) #h = amount of periods ahead
 autoplot
 plot(fcast)
 print(summary(fcast))
@@ -298,118 +434,114 @@ print(summary(fcast))
 #Fitting an auto.arima model in R using the Forecast package
 #fit_basic1<- auto.arima(df_CR,xreg=trainREG_TS)
 #forecast_1<-forecast(fit_basic1,xreg = testREG_TS)
+
+
+##PHY
+
+
+#Fit Dataset
+rate <- ts(ag_df_CR[,'phy'],start = c(2015,5), frequency = 365 )
+#Tell the gaps and days 
+
+
+
+#Grab Data
+autoplot(rate) + ggtitle ("Autoplot - Daily Aggregate ") + ylab("Chlorophyll (RFU)") + theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#Build ARIMA Model - include seasonal autoregressive and seasonal autoregressive moving averages.
+fit_ARIMA <-auto.arima(rate, seasonal = TRUE)
+print(summary(fit_ARIMA))
+checkresiduals(fit_ARIMA)
+
+
+#Forecast
+fcast <- forecast(fit_ARIMA, h =365) #h = amount of periods ahead
+autoplot
+plot(fcast)
+print(summary(fcast))
+
+#Fitting an auto.arima model in R using the Forecast package
+#fit_basic1<- auto.arima(df_CR,xreg=trainREG_TS)
+#forecast_1<-forecast(fit_basic1,xreg = testREG_TS)
+
+
+
 ```
 
-### PCF
+###ACF Aggreggated
 
 ```{r}
+ag_df_CR <- na.omit(ag_df_CR)
 
-df_CR <- na.omit(df_CR)
-df_CR <- char2numeric(ag_df_CR)  #this makes all numeric
-p <- pcf(Kest(df_CR$chl))
-plot(p)
+#Run ACF CHL, PHY 2021
+ts_chl_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
 
-# fv object
-  K <- Kest(df_CR$chl)
-  p2 <- pcf(K, spar=0.8, method="b")
-  plot(p2)
+ts_phy_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
 
-  my_array <-simplify2array(df_CR$chl)
 
+length(ts_chl_2021)
+acf(ts_chl_2021,lag.max = 24*30, main = "Cholorophyll Hourly Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 24*30, main = "Phycocanin Hourly Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+acf(ts_chl_2021,lag.max = 30, main = "Cholorophyll Daily Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 30, main = "Phycocanin Daily Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+
+## you can check an individual value as follows
+cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
 
 ```
 
-###ACF
 
-###PCF
-
-```{r}
-pcf(s_chl_2021,lag.max = 24*30)
-```
-
-### PACF
+### PACF Aggregatted
 
 ```{r}
 #Take away NA values 
 ag_df_CR <- na.omit(ag_df_CR) 
-pacf(df_CR$chl, lag.max = 7)
+pacf(df_CR$chl, lag.max = 7) #test
 
 ```
 
 ```{r}
 #**CHL**
 
-#45 days 
-
-pacf2021 <- ag_df_CR %>% 
-  filter(year(date)==2021) %>%
-  pull(chl) %>%
-  pacf(lag.max=45) 
-plot(pacf2021, main = "Chlorophyll PACF - 45 days")
-
-
-#30 days
-pacf2021 <- ag_df_CR %>% 
-  filter(year(date)==2021) %>%
-  pull(chl) %>%
-  pacf(lag.max=30)
-plot(pacf2021, main = "Chlorphyll PACF - 30 days")
-
-
-#7 days
+#1 Week
 pacf2021 <- ag_df_CR %>% 
   filter(year(date)==2021) %>%
   pull(chl) %>%
   pacf(lag.max=7)
-plot(pacf2021, main = "Chlorphyll PACF - 7 days")
+plot(pacf2021, main = "Chlorophyll Aggregatted PACF - 1 Week")
 
-#1 day
-pacf2021 <- ag_df_CR %>% 
-  filter(year(date)==2021) %>%
-  pull(chl) %>%
-  pacf(lag.max=7)
-plot(pacf2021, main = "Chlorphyll PACF - 1 day")
-
-
-
-```
-
-```{r}
 #**PHY**
 
-#45 days 
-
-pacf2021 <- ag_df_CR %>% 
-  filter(year(date)==2021) %>%
-  pull(phy) %>%
-  pacf(lag.max=45) 
-plot(pacf2021, main = "Phycocanin - 45 days")
-
-
-#30 days
-pacf2021 <- ag_df_CR %>% 
-  filter(year(date)==2021) %>%
-  pull(phy) %>%
-  pacf(lag.max=30)
-plot(pacf2021, main = "Phycocanin PACF - 30 days")
-
-
-#7 days
-pacf2021 <- ag_df_CR %>% 
-  filter(year(date)==2021) %>%
-  pull(phy) %>%
-  pacf(lag.max=7)
-plot(pacf2021, main = "Phycocanin PACF - 7 days")
-
 #1 day
 pacf2021 <- ag_df_CR %>% 
   filter(year(date)==2021) %>%
   pull(phy) %>%
   pacf(lag.max=7)
-plot(pacf2021, main = "Phycocanin PACF - 1 day")
+plot(pacf2021, main = "Phycocanin Aggregatted PACF - 1 Week")
+
+
 ```
 
-### Coefficients of Correlation
+
+### Coefficients of Correlation Aggregatted
 
 ```{r}
 
@@ -442,7 +574,36 @@ morndf_CR <-morndf_CR %>%
   summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
 ```
 
-### Coefficients of Correlation
+
+### First Diff Phy
+
+```{r}
+ag_df_CR <- ag_df_CR %>% pad %>%
+mutate(del_phy = phy - lag(phy,1))
+ ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+
+ag_df_CR %>% filter(year(date) >= 2021) %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+
+ag_df_CR %>% filter(year(date) >= 2021) %>% ggplot(aes(x=date,y=del_phy)) + geom_line() + geom_line(aes(y=phy,color="phy"))
+
+
+```
+
+```{r}
+morndf_CR <- na.omit(morndf_CR)
+morndf_CR <- morndf_CR %>% pad %>%
+mutate(del_phy = phy - lag(phy,1))
+
+ ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+
+ag_df_CR %>% filter(year(date) >= 2021) %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+
+ag_df_CR %>% filter(year(date) >= 2021) %>% ggplot(aes(x=date,y=del_phy)) + geom_line() + geom_line(aes(y=phy,color="phy"))
+```
+
+
+
+### Coefficients of Correlation 9-12
 
 ```{r}
 morndf_CR <- na.omit(morndf_CR)
@@ -459,25 +620,195 @@ rcorr(as.matrix(numericag[-1,-1]), type = c("pearson"))
 
 ```
 
-### First Diff Phy
+
+###ACF 9:12
 
 ```{r}
-ag_df_CR <- ag_df_CR %>% pad %>%
-+  mutate(del_phy = phy - lag(phy,1))
- ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+morndf_CR <- na.omit(morndf_CR)
 
-ag_df_CR %>% filter(year(date) >= 2021) %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+#Run ACF CHL, PHY 2021
+ts_chl_2021 <- morndf_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
 
-ag_df_CR %>% filter(year(date) >= 2021) %>% ggplot(aes(x=date,y=del_phy)) + geom_line() + geom_line(aes(y=phy,color="phy"))
+ts_phy_2021 <- morndf_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
+
+ts_delphy_2021 <- morndf_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","del_phy"),mean),.groups = "keep") %>%
+  pull(del_phy)
+
+
+length(ts_chl_2021)
+acf(ts_chl_2021,lag.max = 24*30, main = "Cholorophyll Hourly 9 AM - 12 PM ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 24*30, main = "Phycocanin Hourly 9 AM - 12 PM ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+acf(ts_chl_2021,lag.max = 30, main = "Cholorophyll Daily 9 AM - 12 PM ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 30, main = "Phycocanin Daily 9 AM - 12 PM ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+acf(ts_delphy_2021,lag.max = 30, main = "1st Difference Phycocanin Daily 9 AM - 12 PM ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+
+## you can check an individual value as follows
+cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
+
+```
+### PACF 9:12
+
+```{r}
+#Take away NA values 
+ag_df_CR <- na.omit(ag_df_CR) 
+pacf(df_CR$chl, lag.max = 7) #test
+
+```
+
+```{r}
+#**CHL**
+
+
+morndf_CR <- na.omit(morndf_CR)
+
+#1 Week
+pacf2021 <- morndf_CR %>% 
+  filter(year(date)==2021) %>%
+  pull(chl) %>%
+  pacf(lag.max=7)
+plot(pacf2021, main = "Chlorophyll 9 AM : 12 PM PACF - 1 Week")
+
+#**PHY**
+
+#1 day
+pacf2021 <- morndf_CR %>% 
+  filter(year(date)==2021) %>%
+  pull(phy) %>%
+  pacf(lag.max=7)
+plot(pacf2021, main = "Phycocanin 9 AM : 12 PM PACF 1st Difference - 1 Week")
+
+pacf2021 <- morndf_CR %>% 
+  filter(year(date)==2021) %>%
+  pull(phy) %>%
+  pacf(lag.max=7)
+plot(pacf2021, main = "Phycocanin 9 AM : 12 PM PACF 1st Difference - 1 Week")
+
+pacf2021 <- morndf_CR %>% 
+  filter(year(date)==2021) %>%
+  pull(del_phy) %>%
+  pacf(lag.max=7)
+plot(pacf2021, main = "1st Difference PACF Phycocanin 9 AM : 12 PM - 1 Week")
+
+
+```
+
+
+## ARIMA 9-12
+
+```{r}
+morndf_CR <- morndf_CR  %>% pad()
+
+class(morndf_CR)
+morndf_CR$chl <- as.numeric(morndf_CR$chl)
+
+#plot(ag_df_CR$date, ag_df_CR$chl) 
+
+
+#CHL 
+
+#Fit Dataset
+rate <- ts(morndf_CR[,'chl'],start = c(2015,5), frequency = 365 )
+#Tell the gaps and days 
+
+
+
+#Grab Data
+autoplot(rate) + ggtitle ("Autoplot - 9 AM : 12 PM ") + ylab("Chlorophyll (RFU)") + theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#Build ARIMA Model - include seasonal autoregressive and seasonal autoregressive moving averages.
+fit_ARIMA <-auto.arima(rate, seasonal = TRUE)
+print(summary(fit_ARIMA))
+checkresiduals(fit_ARIMA)
+
+
+#Forecast
+fcast <- forecast(fit_ARIMA, h =365) #h = amount of periods ahead
+autoplot
+plot(fcast)
+print(summary(fcast))
+
+
+#PHY
+
+#Fit Dataset
+rate <- ts(morndf_CR[,'phy'],start = c(2015,5), frequency = 365 )
+
+
+#Grab Data
+autoplot(rate) + ggtitle ("Autoplot - 9 AM : 12 PM ") + ylab("Chlorophyll (RFU)") + theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#Build ARIMA Model - include seasonal autoregressive and seasonal autoregressive moving averages.
+fit_ARIMA <-auto.arima(rate, seasonal = TRUE)
+print(summary(fit_ARIMA))
+checkresiduals(fit_ARIMA)
+
+
+#Forecast
+fcast <- forecast(fit_ARIMA, h =365) #h = amount of periods ahead
+autoplot
+plot(fcast)
+print(summary(fcast))
+
+
+#1ST DIFF PHY 
+
+#Fit Dataset
+rate <- ts(morndf_CR[,'del_phy'],start = c(2015,5), frequency = 365 )
+
+
+#Grab Data
+autoplot(rate) + ggtitle ("Autoplot - 9 AM : 12 PM ") + ylab("Chlorophyll (RFU)") + theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#Build ARIMA Model - include seasonal autoregressive and seasonal autoregressive moving averages.
+fit_ARIMA <-auto.arima(rate, seasonal = TRUE)
+print(summary(fit_ARIMA))
+checkresiduals(fit_ARIMA)
+
+
+#Forecast
+fcast <- forecast(fit_ARIMA, h =365) #h = amount of periods ahead
+autoplot
+plot(fcast)
+print(summary(fcast))
+
+
+
+
+
 ```
 
 # EDM
 
 ## EDM Uni-variate Analysis
 
-## EDM 9-12
 
-## EDM Daily 
 
 Read Data + Find Parameters
 
@@ -491,9 +822,373 @@ Read Data + Find Parameters
 ```{r}
 
 #Without NA Values
-#morn_dfCR <- na.omit(morn_dfCR) 
+morndf_CR <- na.omit(morn_dfCR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(morndf_CR)
+
+print(last_value)
+
+```
+
+```{r}
+rm(last_value)
+rm(first_row_2023)
+```
+
+
+## EDM 9-12 PHY
+
+```{r}
+
+#Without NA Values
+
+morndf_CR <- na.omit(morndf_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(morndf_CR)
+
+print(last_value)
+
+```
+
+```{r}
+lib_ins <- c(1,992) # data up through end of 2022; this is the training set
+lib_oos <- c(993,1138) # leave this alone until we're nearly done with the project
+
+rho_E <- EmbedDimension(dataFrame = morndf_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+```
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = morndf_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+###Predict Nonlinear 
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "phy", target = "phy",
+                                    E=3,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+
+
+## EDM 9-12 1st Diff PHY
+
+```{r}
+
+#Without NA Values
+
+morndf_CR <- na.omit(morndf_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(morndf_CR)
+
+print(last_value)
+
+```
+
+```{r}
+lib_ins <- c(1,992) # data up through end of 2022; this is the training set
+lib_oos <- c(993,1138) # leave this alone until we're nearly done with the project
+
+rho_E <- EmbedDimension(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+
+#rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+#lib = "1 1075", pred = "1076 1223", showPlot = TRUE) #lib train, #pred is pred 
+
+#lib = "1 100 101 200 301 400", - leaving one out
+
+```
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+###Predict Nonlinear 
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+                                    E=8,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+
+
+## EDM 9-12 CHL
+
+
+
+```{r}
+
+#Without NA Values
+
+morndf_CR <- na.omit(morndf_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(morndf_CR)
+
+print(last_value)
+
+```
+
+```{r}
+lib_ins <- c(1,992) # data up through end of 2022; this is the training set
+lib_oos <- c(993,1138) # leave this alone until we're nearly done with the project
+
+rho_E <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+
+#rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+#lib = "1 1075", pred = "1076 1223", showPlot = TRUE) #lib train, #pred is pred 
+
+#lib = "1 100 101 200 301 400", - leaving one out
+
+```
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+###Predict Nonlinear 
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "chl", target = "chl",
+                                    E=9,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = morndf_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+
+
+
+
+## EDM Daily CHL
+
+
+```{r}
+
+#Without NA Values
 
 ag_df_CR <- na.omit(ag_df_CR) 
+
 
 # Find the first row number for the first date in 2023
 first_row_2023 <- which(format(ag_df_CR$date, "%Y") == "2023")[1]
@@ -507,10 +1202,9 @@ print(last_value)
 
 ```
 
-```{r}
-rm(last_value)
-rm(first_row_2023)
-```
+
+ 
+
 
 ### Optimal Embedding Dimension
 
@@ -520,11 +1214,11 @@ rm(first_row_2023)
 
     -   Rho
 
-**Replace Rho_AR with preds_AR?**
+
 
 ```{r}
-lib_ins <- c(1,1075) # data up through end of 2022; this is the training set
-lib_oos <- c(1076,1223) # leave this alone until we're nearly done with the project
+lib_ins <- c(1,1024) # data up through end of 2022; this is the training set
+lib_oos <- c(1025,1171) # leave this alone until we're nearly done with the project
 
 rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
 lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
@@ -589,11 +1283,10 @@ rho_E_tau_i %>%
   
 ```
 
-**E = 6 here?**
 
 ```{r}
 rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "chl", target = "chl",
-                                    E=9,
+                                    E=5,
                                     tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
                                     lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
@@ -672,6 +1365,208 @@ rho_theta_tau_i %>%
   labs(title=paste0("Simplex with tau = ",tau_i))
 
 ```
+
+
+
+## EDM Daily PHY
+
+
+```{r}
+
+#Without NA Values
+
+ag_df_CR <- na.omit(ag_df_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(ag_df_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(ag_df_CR)
+
+print(last_value)
+
+```
+
+
+ 
+
+
+### Optimal Embedding Dimension
+
+-   rho_E
+
+    -   E
+
+    -   Rho
+
+
+
+```{r}
+lib_ins <- c(1,1024) # data up through end of 2022; this is the training set
+lib_oos <- c(1025,1171) # leave this alone until we're nearly done with the project
+
+rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+```
+
+"At a daily time-scale, EDM predictions do not beat the strong day-to-day autocorrelation in the signal." This is no surprise. Let's look again with a larger tau, informed by the previous ACF analysis; we saw a signal somewhere in the window of 4 days - 1 week.
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+**E = 6 here?**
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                                    E=4,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+1 week:
+
+```{r}
+tau_i <- 7
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+```{r}
+
+rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                                    E=2,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### Prediction Decay
 
@@ -776,11 +1671,16 @@ tail(cbind(smap$predictions, smap$coefficients))
 ### Convergent Cross Mapping (CCM)
 
 find out multivariate
-
+CSO - reflects and episodic threshold reponse to weather
 ```{r}
-#**Deyle** 
+
 
 cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 2, columns = "chl", target = "turb", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+
+
+
+
 
 #tp - 2012 paper 
 ```
@@ -897,5 +1797,35 @@ columns = "chl phy ph Celsius spcond do turb", target = "chl")
 Mview$View[which(Mview$View$rho > 0.91), ]
 
 ```
+
+
+Next Steps
+
+Convergent Cross Mapping 
+All possible Covariates in one data frame as different columns
+other variables
+all the endogenous bigoeochemical and human drivers management driver and 
+- rainfall and CSOs
+know now half week to weekly time scale we see has signature 
+until we have the corrected values to keep the diff
+9 to noon 4 days negative auto, use linear s-map 
+To make forecasts: predict 1st differences and add back into data 
+prediction for tomorrow is value for tomorrow + value for today 
+
+list of measurments and list of weekly measurments
+look at Tahoe + geneva
+
+plot minutes vs. volume CSOs
+- rainfall causal associations?
+analysis: 
+same trend = synchornity
+not = one is low and flat is oneway causal  
+number at end matters, consider as correlation coeff, rho ccm at max library size
+
+look at full matrix with nutrient time series later on
+
+2 different data matrixes
+1. time-scale
+2. timespan
 
 ### 
