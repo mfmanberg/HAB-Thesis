@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: "CSO_HABs"
 output: html_document
@@ -588,3 +589,500 @@ library(gam)
 ### 6.3 C GAM (Generalized Additive Model)
 
 ### 6.4 Gap filled predicted mean
+=======
+---
+title: "CSO_HABs"
+output: html_document
+date: "2024-01-22"
+---
+Notes
+When are the lags?
+
+### Library + Data Wrangling
+
+```{r}
+#Load the required library 
+library(rEDM)
+library(tidyverse)
+library(googlesheets4)
+library(padr)
+library(oce)
+library(tseries)
+library(forecast)
+library(spatstat)
+library(tseries)
+library(corrplot)
+library(lubridate)
+library(psych)
+library(Hmisc)
+
+```
+
+### MWRA CSO Data
+
+```{r}
+
+MWRACSOData2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1BF5lMyYrnILoS-rySwTGILiaqYfxA5-Pz5P2xUmOIq8/edit?usp=sharing')
+
+MWRACSOData <- read_sheet('https://docs.google.com/spreadsheets/d/1PRu1yvIuxOnMyazAVkXGv7dkOKUClNxl7CrvrctPREU/edit?usp=sharing')
+
+
+
+```
+
+```{r}
+
+
+#Extract Date
+MWRACSOData$Date <- as.Date(MWRACSOData$`Start Time`, format = "%m/%d/%Y")
+
+
+#Remove Excess Charecters
+
+#Remove "Treated" in Volume Column
+MWRACSOData$`Volume (MG)` <- gsub("Treated","",as.character(MWRACSOData$`Volume (MG)`))
+
+#Remove "min" in Minutes Column
+
+MWRACSOData$Minutes <- gsub("min","",as.character(MWRACSOData$Minutes))
+
+#Remove Rows w/ "*"
+MWRACSOData <- MWRACSOData %>% filter(!grepl("\\*", MWRACSOData$Duration))
+
+#Replace NA w/ 0
+MWRACSOData$Minutes[is.na(MWRACSOData$Minutes)] <- 0
+
+#Make Duration Column
+MWRACSOData$Minutes <- as.numeric(MWRACSOData$Minutes)
+MWRACSOData$Hours <- as.numeric(MWRACSOData$Hours)
+
+MWRACSOData$CombinedMinutes <- MWRACSOData$Minutes + (MWRACSOData$Hours * 60)
+
+#Remove Columns 
+
+MWRACSOData <- MWRACSOData[-c(4:10)]
+
+#Check Dates
+
+unique_dates <- unique(MWRACSOData$Date)
+
+
+# Sanity Check: CombinedMinutes to numeric and Date to Date format
+MWRACSOData <- MWRACSOData %>%
+  mutate(CombinedMinutes = as.numeric(CombinedMinutes),
+         Date = as.Date(Date))
+
+MWRACSOData <- MWRACSOData %>%
+  mutate(`Volume (MG)` = as.numeric(`Volume (MG)`),
+         Date = as.Date(Date))
+
+# Group by Date and calculate the sum of CombinedMinutes
+
+
+
+MWRACSOData2 <- 
+aggregate(MWRACSOData$CombinedMinutes, by=list(MWRACSOData$Date, MWRACSOData$`Outfall Location`), FUN = sum) 
+
+
+MWRACSOData3 <- 
+aggregate(MWRACSOData$`Volume (MG)`, by=list(MWRACSOData$Date, MWRACSOData$`Outfall Location`), FUN = sum) 
+
+MWRACSOData20162 <- 
+aggregate(MWRACSOData2016$`Duration (Min)`, by=list(MWRACSOData2016$Date, MWRACSOData2016$CSOName), FUN = sum) 
+
+MWRACSOData20163 <- 
+aggregate(MWRACSOData2016$`Volume (MG)`, by=list(MWRACSOData2016$Date, MWRACSOData2016$CSOName), FUN = sum) 
+
+
+# Rename a column using colnames
+
+colnames(MWRACSOData2)[1:3] <- c("Date","Outfall Location", "Total Minutes")
+
+colnames(MWRACSOData20162)[1:3] <- c("Date","Outfall Location", "Total Minutes")
+
+colnames(MWRACSOData3)[1:3] <- c("Date","Outfall Location", "Volume")
+
+colnames(MWRACSOData20163)[1:3] <- c("Date","Outfall Location", "Volume")
+
+#Set Columns to Be The Same
+
+MWRACSOData <- MWRACSOData[-c(1,4,5,7)]
+
+MWRACSOData2016 <- MWRACSOData2016[-c(3:8)]
+
+
+
+
+#Make New Names
+
+MWRA_new_names <- c(
+  "CSO_ID",
+  "Outfall Location",
+  "Date"
+)
+
+MWRA2016_new_names <- c(
+  "CSO_ID",
+  "Outfall Location",
+  "Date"
+)
+
+MWRACSOData <- MWRACSOData %>% 
+  set_names(MWRA_new_names)
+  
+MWRACSOData2016 <- MWRACSOData2016 %>% 
+  set_names(MWRA2016_new_names)
+
+#Fix Date Format
+
+MWRACSOData$Date <- format(as.Date(MWRACSOData$Date, format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+#Merge Columns 
+
+MergedMWRACSO <- rbind(MWRACSOData,MWRACSOData2016)
+
+#Order Date
+
+MergedMWRACSO[order(as.Date(MergedMWRACSO$Date, format="%m/%d/%Y")),]
+
+#Fix Date Formats of Future Joins
+MWRACSOData2$Date <- format(as.Date(MWRACSOData2$Date, format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+
+MWRACSOData3$Date <- format(as.Date(MWRACSOData3$Date, format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+# Perform the joins
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData2[, c("Date", "Outfall Location", "Total Minutes")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData20162[, c("Date", "Outfall Location", "Total Minutes")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+# Combine the columns using coalesce
+MergedMWRACSO <- MergedMWRACSO %>%
+  mutate(TotalMinutes_combined = coalesce(`Total Minutes.x`, `Total Minutes.y`))
+
+
+# Drop the individual columns if you no longer need them
+MergedMWRACSO <- MergedMWRACSO %>%
+  select(-`Total Minutes.x`, -`Total Minutes.y`)
+
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData3[, c("Date", "Outfall Location", "Volume")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData20163[, c("Date", "Outfall Location", "Volume")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+MergedMWRACSO <- MergedMWRACSO %>%
+  mutate(Volume_combined = coalesce(`Volume.x`, `Volume.y`))
+
+
+# Drop the individual columns if you no longer need them
+MergedMWRACSO <- MergedMWRACSO %>%
+  select(-`Volume.x`, -`Volume.y`)
+
+
+```
+
+
+```{r}
+
+MWRACSOCoords <- read_sheet('https://docs.google.com/spreadsheets/d/1O9RONCW0lGEsPrt-srZU8M4xeNxDM3hJmkA1IWL2mW4/edit?usp=sharing')
+
+MWRACSOCoords2 <- read_sheet('https://docs.google.com/spreadsheets/d/18PK0CcX6Ye5RZJtVUI8mmiaRwLIpRNIzGCwOupSqf-k/edit?usp=sharing')
+
+
+```
+
+```{r}
+
+MWRACSOFinal <-  
+left_join(MergedMWRACSO , MWRACSOCoords ,  by = c("CSO_ID" = "OUTFALL"  ))
+
+#MWRACSOCoords2$OUTFALL_ID <- as.character(MWRACSOCoords2$OUTFALL_ID )
+
+#MWRACSOFinal <-  
+#left_join(MergedMWRACSO , MWRACSOCoords2 ,  by = c("CSO_ID" = "OUTFALL_ID"  ))
+```
+
+```{r}
+write_csv(MWRACSOFinal, file = "MWRACSOs.csv") 
+```
+
+```{r}
+# List all objects in the environment
+all_objects <- ls()
+
+# Identify objects to keep
+objects_to_keep <- c("MWRACSOFinal")
+
+# Identify objects to remove
+objects_to_remove <- setdiff(all_objects, objects_to_keep)
+
+# Remove unwanted objects
+rm(list = objects_to_remove)
+
+rm(all_objects)
+rm(objects_to_keep)
+rm(objects_to_remove)
+
+```
+
+
+
+
+###Get Phy 
+
+```{r}
+#Charles River
+#Reads data into R
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/18xDJ9cLaZuj3JqhFsf847nSLMGKjfvWZmHWifsrPBq8/edit?usp=sharing')
+
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+
+#Prints the data
+```
+
+```{r}
+#bind rows
+df_CR <- bind_rows(
+  CR2015,
+  CR2016,
+  CR2017, 
+  CR2018,
+  CR2019,
+  CR2020,
+  CR2021,
+  CR2022,
+  CR2023
+)
+#combine data
+df_CR <- df_CR %>%
+  mutate(hour = pmin(hour(`time est`),hour(`time edt`),na.rm=T),
+         minute = pmin(minute(`time est`),minute(`time edt`),na.rm=T)) %>%
+  select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`, ph=`ph`, Celsius =`temp c`,  spcond = `spcond (ms/cm)`, do = `do (mg/l)`,turb = `turbidity (fnu)` )
+  
+#%>% rename(`time est`=time)
+
+```
+
+
+#Aggregate Values Daily
+```{r}
+df_CR$Salinity <- 
+
+  swSCTp(
+  df_CR$spcond,
+df_CR$Celsius,
+  pressure = rep(10.1325,NROW(df_CR)),
+  # "mS/cm",
+"",
+  eos = getOption("oceEOS", default = "gsw")
+)
+
+
+ag_df_CR <-df_CR %>%
+   group_by(date) %>%
+  summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
+
+```
+
+
+LM and GAM relaxes linearity 
+can say wether term is linear or spline
+whether error distribution is 
+
+Difference between GAM and LM is GAM works with non gaussion
+can use GAM to fit GM by saying distribution is normal 
+whether response variable is linear or non-linear 
+
+GAM - put variable where non linear x
+
+
+
+### ALL CSOs
+
+```{r}
+
+ag_df_CR$Date <- ag_df_CR$date
+
+ag_df_CR <- ag_df_CR[,-c(1) ]
+
+rm(CR2023, CR2022, CR2020, CR2021, CR2020, CR2019, CR2018, CR2017, CR2016, CR2015, df_CR)
+
+ag_df_CR2 <- ag_df_CR
+
+
+#Fix Date Formats of Future Joins
+MWRACSOFinal$Date <- format(as.Date(MWRACSOFinal$Date, format=
+                           "%m-%d-%Y"         ), "%m-%d-%Y")
+
+
+ag_df_CR2$Date <- format(as.Date(ag_df_CR2$Date , format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+
+#join
+
+All <- merge(MWRACSOFinal, ag_df_CR2, by = "Date", all = TRUE)
+
+# Assuming your date column is named "Date"
+All$Date <- as.Date(All$Date, format="%m-%d-%Y")
+
+# Order the data frame by Year, Month, and Day
+All <- All[order(year(All$Date), month(All$Date), day(All$Date)), ]
+
+```
+
+###CSO OCCURRANCES 
+```{r}
+
+# Assuming your data frame is named MWRACSOFinal and the column with CSO IDs is named CSO_ID
+cso_counts <- as.data.frame(table(MWRACSOFinal$CSO_ID))
+
+#011
+
+```
+
+###Noteworthy Points
+MWR203 MWRA Charles/Boston Harbor 
+MWR205 MWRA Mystic
+MWR201 MWRA Cottage Farm
+MWR021 Close to Buoy, MWRA
+
+### SINGLE BEST POINT
+
+```{r}
+
+#MWR203 MWRA Charles/Boston Harbor 
+#MWR205 MWRA Mystic
+#MWR201 MWRA Cottage Farm
+#MWR021 Close to Buoy, MWRA
+
+
+Single_best <- All[All$CSO_ID == "MWR203", ]
+#this removes all rows that are not MWR203 
+
+
+```
+
+
+### BEST COUPLE
+
+```{r}
+
+Couple_best <- All[All$CSO_ID %in% c("MWR203", "MWR201"), ]
+
+```
+
+
+### Interpolated
+
+
+
+```{r}
+#Step 1: Plot the Data
+plot(y ~ x)
+
+#OLS using the lm function 
+model = lm((y ~ x))
+summary(model)
+
+#OLS using GLM
+model.glm = glm(y ~ x, family = gaussian(link = "identity"))
+summary(model.glm)
+```
+
+use gaussian or gamma, not count
+### GLM (Generalized Linear Model)
+
+
+family(object, ...)
+
+binomial(link = "logit")
+gaussian(link = "identity")
+
+Gamma(link = "inverse") 0 bound contious distribution 
+page 79
+
+
+
+
+inverse.gaussian(link = "1/mu^2")
+poisson(link = "log")
+quasi(link = "identity", variance = "constant")
+quasibinomial(link = "logit")
+quasipoisson(link = "log")
+
+What Do I Chose Here?
+
+
+### GAM (Generalized Additive Model)
+GAM has same choice of families 
+specify what varaibles you want to be smoothed 
+MGCV package
+challenge2021_manuscript.Rmd
+put s what you want to be splined 
+method REML default 
+add family if you want 
+
+
+```{r}
+library(gam)
+
+#model <- gam( y ~ x, data = , method = " f " ) 
+
+
+
+
+```
+
+
+### Interpolate all Data into one point
+
+
+
+
+
+
+### Analysis of Fit
+
+
+
+
+
+
+### 6.2 Spatial Viability
+
+
+### 6.2 A Calculate correlations among locations for loop
+
+### 6.2 B GLM (Generalized Linear Model)
+
+### 6.3 C GAM (Generalized Additive Model)
+
+### 6.4 Gap filled predicted mean
+>>>>>>> 7d2007589583dea1d6749bf341115c383b32c474
