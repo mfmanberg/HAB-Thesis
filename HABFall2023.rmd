@@ -1691,6 +1691,25 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 2, columns = "chl", target = "turb
 
 smplx_3CR
 
+
+
+multivar 
+```{r}
+
+multivar <- Simplex(Embedded = TRUE, columns = c("phy"))
+
+
+
+
+
+
+```
+
+
+
+
+
+
 ### Save as New
 
 ```{r}

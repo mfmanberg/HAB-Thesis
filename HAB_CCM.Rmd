@@ -11,6 +11,7 @@ library(googlesheets4)
 library(oce)
 library(padr)
 library(rEDM)
+library(ggplot2)
 
 ```
 
@@ -93,7 +94,6 @@ mutate(del_phy = phy - lag(phy,1))
 
 
 
-Omit Values?
 
 ###Library 
 
@@ -509,6 +509,57 @@ CAM017_discharges <- subset(CAM017, MG != 0)
 ```
 
     
+  ### ALL CSOs
+
+```{r}
+
+ag_df_CR$Date <- ag_df_CR$date
+
+ag_df_CR <- ag_df_CR[,-c(1) ]
+
+#rm(CR2023, CR2022, CR2020, CR2021, CR2020, CR2019, CR2018, CR2017, CR2016, CR2015, df_CR)
+
+ag_df_CR2 <- ag_df_CR
+
+
+#Fix Date Formats of Future Joins
+MWRACSOFinal$Date <- format(as.Date(MWRACSOFinal$Date, format=
+                           "%m-%d-%Y"         ), "%m-%d-%Y")
+
+
+ag_df_CR2$Date <- format(as.Date(ag_df_CR2$Date , format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+
+#join
+
+All <- merge(MWRACSOFinal, ag_df_CR2, by = "Date", all = TRUE)
+
+# Assuming your date column is named "Date"
+All$Date <- as.Date(All$Date, format="%m-%d-%Y")
+
+# Order the data frame by Year, Month, and Day
+All <- All[order(year(All$Date), month(All$Date), day(All$Date)), ]
+
+```
+
+Join CAM + CSO
+
+```{r}
+All <- merge(All, CAM017, by = "Date", all = TRUE)
+All <- All %>%
+  rename(CAM017MG = MG)
+
+
+
+```
+
+```{r}
+All <- na.omit(All)
+```
+
+
+
 ###CCM LOGAN
 
 #HourlyAltimeterSetting
@@ -516,9 +567,9 @@ CAM017_discharges <- subset(CAM017, MG != 0)
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyAltimeterSetting", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyAltimeterSetting", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
 
@@ -635,7 +686,7 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", ta
 
 ###CCM EPA BUOY
 ```{r}
-na.omit(ag_df_CR)
+ag_df_CR <- na.omit(ag_df_CR)
 ```
 
 CCM LibSizes Explained
@@ -652,22 +703,103 @@ this is where you do bootstrap, subsets of data ex: 100, do 100 n number of rand
 
 ##PH
 
+```{r}
+ph.del.cor <- cor(cmap.ph.del)
+
+
+# Define a function to calculate correlation
+calculate_correlation <- function(row, ref_column) {
+  cor(row[-1], ref_column)
+}
+
+# Apply the function row-wise
+correlations <- apply(cmap.ph.del[, -1], 1, calculate_correlation, cmap.ph.del$LibSize)
+
+
+# Add correlations to the CMAP data frame
+cmap.ph.del$correlations <- correlations
+
+
+plot(cmap.ph.del)
+```
+
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "ph", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+ph.del.cor <- cor(cmap.ph.del)
+
+plot.cmap.ph.del <- plot(x = cmap.ph.del$LibSize, y = cmap.ph.del$`ph:del_phy`)
+plot(x = cmap.ph.del$LibSize, y = cmap.ph.del$`ph:del_phy`, type = "l",
+     main = "Line Plot", xlab = "LibSize", ylab = "ph:del_phy")
+
+# Add a line to the plot
+lines(x = cmap.ph.del$LibSize, y = cmap.ph.del$`ph:del_phy`, col = "red")
+
+
+abline(h = 0.8738390, col = "red")
+
+  
+
+correlations <- apply(cmap.ph.del , 1, function(x) cor(x, CMAP))
+
+cmap.ph.del + geom_abline(slope = 0.8738390, intercept = 0, color = "red")
+
+# Extract the ggplot object from the CCM plot
+ggplot_obj <- as.ggplot(CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE))
+
+# Modify the ggplot object as needed
+ggplot_obj + geom_hline(yintercept = 0.8738390, color = "red")
+plot.new<- cmap.ph.del + abline(y = 0.8738390, color = "red")
+
+
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE) 
+
 
 ```
+```{r}
+
+
+cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE, abline())
+
+```
+
+
+
+
+#using simplex 
+
+```{r}
+
+lib_ins <- c(1,992) # data up through end of 2022; this is the training set
+lib_oos <- c(993,1138) # leave this alone until we're nearly done with the project
+
+cmap <- Simplex(dataFrame = ag_df_CR, lib = lib_ins, pred = lib_ins, target = "del_phy", columns = "ph", Tp = 0, E = 4)
+
+head(cmap)
+plot(cmap)
+
+
+ag_df_CRPredict <- Simplex(dataFrame = ag_df_CR, pred = "1076 1223", target = "chl",
+columns = "chl", E = 4)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", , sample = 10, showPlot = TRUE)
+
+```
+
+
 
 ##Celsius
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Celsius", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "Celsius", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Celsius", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "Celsius", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
 
@@ -675,9 +807,9 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Celsius", target = "
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "spcond", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "spcond", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "spcond", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "spcond", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
 
@@ -685,9 +817,12 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "spcond", target = "c
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "do", target = "del_phy", libSizes = "20 200 10 ", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "del_phy", libSizes = "20 200 10 ", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "do", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE) 
+
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
 
@@ -696,9 +831,27 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "do", target = "chl",
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "turb", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "turb", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE) 
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "turb", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "turb", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "turb", target = "chl", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
+
+
+
+```
+
+#CHL, PHY DEL_PHY
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "chl", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE) 
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "chl", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "phy", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
+
+
 
 ```
 
@@ -707,19 +860,21 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "turb", target = "chl
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Salinity", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0 columns = "Salinity", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "Salinity", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0 columns = "Salinity", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
 
 
 #CCM CAMCSO
+
+Need to use the same data?
 ```{r}
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "MG", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = All, E = 4, Tp = 0, columns = "MG", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "MG", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = All, E = 4, Tp = 0, columns = "MG", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 
 ```
@@ -734,9 +889,9 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 4, columns = "MG", target = "chl",
 ```{r}
 
 
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "Enteroccus", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 
 ```
@@ -818,3 +973,11 @@ cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phospho
 
 
 ```
+ccm uses y to predict x, if true, x can affect y 
+ccm wraps (Simplex target = x, columns = y)
+
+
+
+multivariate 
+Simplex ( Embedded = True, columns = c("x1, "x2)) 
+set CCM samples to 10 to see result 

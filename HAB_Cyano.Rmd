@@ -1,0 +1,295 @@
+---
+title: "HAB_Cyano"
+output: html_document
+date: "2024-03-07"
+---
+
+```{r}
+#Charles River
+#Reads data into R
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/18xDJ9cLaZuj3JqhFsf847nSLMGKjfvWZmHWifsrPBq8/edit?usp=sharing')
+
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+
+#Prints the data
+```
+
+
+```{r}
+#bind rows
+df_CR <- bind_rows(
+  CR2015,
+  CR2016,
+  CR2017, 
+  CR2018,
+  CR2019,
+  CR2020,
+  CR2021,
+  CR2022,
+  CR2023
+)
+#combine data
+df_CR <- df_CR %>%
+  mutate(hour = pmin(hour(`time est`),hour(`time edt`),na.rm=T),
+         minute = pmin(minute(`time est`),minute(`time edt`),na.rm=T)) %>%
+  select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`, ph=`ph`, Celsius =`temp c`,  spcond = `spcond (ms/cm)`, do = `do (mg/l)`,turb = `turbidity (fnu)` )
+  
+#%>% rename(`time est`=time)
+
+```
+
+
+#Aggregate Values Daily
+```{r}
+df_CR$Salinity <- 
+
+  swSCTp(
+  df_CR$spcond,
+df_CR$Celsius,
+  pressure = rep(10.1325,NROW(df_CR)),
+  # "mS/cm",
+"",
+  eos = getOption("oceEOS", default = "gsw")
+)
+
+
+ag_df_CR <-df_CR %>%
+   group_by(date) %>%
+  summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
+
+```
+
+### First Diff Phy
+
+```{r}
+ag_df_CR <- ag_df_CR %>% pad %>%
+mutate(del_phy = phy - lag(phy,1))
+ ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+
+```
+
+
+### CRWA
+
+```{r}
+CRWAdata <- read_sheet('https://docs.google.com/spreadsheets/d/1pJxZbbWJUtoLKJ9lX6DA09esBOZdVCDiB4Ztd92hrtE/edit?usp=sharing')
+```
+
+```{r}
+
+
+ # do something about Results that are "<10.0". turn into 0 for now?
+
+#CRWAdata <- CRWAdata %>%
+  #mutate( = ifelse(Value == "<10.0", 0, as.numeric(Value)))
+
+CRWAdata_wide <- CRWAdata %>%
+  select(Site_ID,Date_Collected,
+         Time_Collected,Component_ID,Reporting_Result) %>%
+  group_by(Site_ID,Date_Collected,Time_Collected,Component_ID) %>%
+  summarise(Reporting_Result = mean(Reporting_Result,na.rm=T),.groups = "keep") %>%
+  pivot_wider(names_from= Component_ID,values_from=Reporting_Result)
+
+
+#Data types
+CRWAtypes <- CRWAdata %>% distinct(CRWAdata$Component_ID) #remove duplicate data
+Component_ID2 <- CRWAtypes
+
+```
+
+
+#CYANO COUNTS
+
+```{r}
+
+MDPH2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1HeVNoOE7Z_eYGcaoJxT9GQlHMzJcTPW8jMsImqoyCRw/edit?usp=sharing', sheet = 2)
+
+MDPH2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1HeVNoOE7Z_eYGcaoJxT9GQlHMzJcTPW8jMsImqoyCRw/edit?usp=sharing', sheet = 3)
+
+MaxPaper20152019 <-  read_sheet('https://docs.google.com/spreadsheets/d/1K0FwgETetaCSKT7jng0CzTzppFn3p7Q3QiKy8oqbZnc/edit?usp=sharing', sheet = 3)
+
+
+
+```
+
+#PLOTS
+
+#PAD CR 
+
+```{r}
+ag_df_CR <- ag_df_CR %>% pad()
+
+```
+
+#Plot
+
+#2015
+```{r}
+#PHY
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2015) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=phy,color="phy"))
+
+#CHL
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2015) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl"))
+
+
+```
+
+#2016
+```{r}
+#PHY
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2016) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=phy,color="phy"))
+
+#CHL
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2016) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl"))
+
+
+```
+
+#2017
+```{r}
+#PHY
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2017) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=phy,color="phy"))
+
+#CHL
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2017) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl"))
+
+
+```
+
+#2018
+```{r}
+#PHY
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2018) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=phy,color="phy"))
+
+#CHL
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2018) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl"))
+
+
+```
+
+#2019
+```{r}
+#PHY
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2019) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=phy,color="phy"))
+
+#CHL
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2019) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl"))
+
+
+```
+
+
+#2020
+```{r}
+#PHY
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2020) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=phy,color="phy"))
+
+#CHL
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2020) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl"))
+
+
+```
+ 
+
+#2021
+```{r}
+#PHY
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2021) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=phy,color="phy"))
+
+#CHL
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2021) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl"))
+
+
+```
+ 
+#2022
+```{r}
+#PHY
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2022) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=phy,color="phy"))
+
+#CHL
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2022) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl"))
+
+
+```
+
+
+#2023
+```{r}
+#PHY
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2023) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=phy,color="phy"))
+
+#CHL
+ag_df_CR %>% group_by(date) %>%
+  filter(year(date) == 2023) %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl"))
+
+
+```
+

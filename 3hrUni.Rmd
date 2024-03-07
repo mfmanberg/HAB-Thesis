@@ -92,8 +92,9 @@ df_CR$Salinity <-
   swSCTp(
   df_CR$spcond,
 df_CR$Celsius,
-  pressure = NULL,
-  "mS/cm",
+  pressure = rep(10.1325,NROW(df_CR)),
+  # "mS/cm",
+"",
   eos = getOption("oceEOS", default = "gsw")
 )
 
@@ -122,7 +123,7 @@ write.csv(df_CR, file = "C:/Users/mfman/OneDrive/Desktop/HAB-Thesis/df_CR.csv")
 #keep only hrs 9-12
 
 df_CR <- df_CR %>%
-  filter(hour %in% c(9, 10, 11, 12))
+  filter(hour %in% c(9, 10, 11))
 
 ```
 
@@ -156,6 +157,7 @@ df_CR %>% group_by(date,hour) %>%
   ggplot(aes(x=date)) + 
   geom_path(aes(y=chl,color="chl")) + 
   geom_path(aes(y=phy,color="phy")) 
+
 ```
 
 #Plot Non-Aggregated data
@@ -174,6 +176,7 @@ df_CR %>% group_by(date,hour) %>%
   geom_path(aes(y=do,color="do")) +
   geom_path(aes(y=turb,color="turb")) +
  geom_path(aes(y=Salinity,color="Salinity")) 
+
 ```
 
 **Cannot Run without daily values**
@@ -199,8 +202,9 @@ df_CR %>% group_by(date,hour) %>%
 df_CR <- na.omit(df_CR) 
 
 
-#Omit NA Values
-ag_df_CR <- ag_df_CR %>% pad()
+#Omit NA Values and add delta-phy
+ag_df_CR <- ag_df_CR %>% pad %>%
+  mutate(del_phy = phy - lag(phy,1))
 
 #Plot
 ag_df_CR %>% group_by(date) %>%
@@ -243,6 +247,18 @@ ag_df_CR %>%
   labs(x = "Month", y = "Chl")
   
 ```
+
+```{r}
+ag_df_CR <- ag_df_CR %>% pad %>%
++  mutate(del_phy = phy - lag(phy,1))
+ ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+
+ag_df_CR %>% filter(year(date) >= 2021) %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+
+ag_df_CR %>% filter(year(date) >= 2021) %>% ggplot(aes(x=date,y=del_phy)) + geom_line() + geom_line(aes(y=phy,color="phy"))
+```
+
+
 
 ## EDM Uni-variate Analysis
 
@@ -291,8 +307,8 @@ rm(first_row_2023)
 **Replace Rho_AR with preds_AR?**
 
 ```{r}
-lib_ins <- c(1,1025) # data up through end of 2022; this is the training set
-lib_oos <- c(1026,1172) # leave this alone until we're nearly done with the project
+lib_ins <- c(1,993) # data up through end of 2022; this is the training set
+lib_oos <- c(994,1139) # leave this alone until we're nearly done with the project
 
 rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
 lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
@@ -301,8 +317,8 @@ lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred
 preds_AR <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
 lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
 
-stats_AR <- ComputeError(rho_AR$predictions$Observations,
-                         rho_AR$predictions$Predictions)
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
 
 
 rho_E %>%
@@ -344,7 +360,7 @@ lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred
 
 # we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
 preds_AR <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
-lib = lib_ins, pred = lib_ins, E=6,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
 
 stats_AR <- ComputeError(preds_AR$predictions$Observations,
                          preds_AR$predictions$Predictions)
@@ -362,7 +378,7 @@ rho_E_tau_i %>%
 **E = 6 here?**
 ```{r}
 rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "chl", target = "chl",
-                                    E=6,
+                                    E=9,
                                     tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
                                     lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
@@ -456,7 +472,7 @@ columns = "chl", E = 6)
 
 
 ```
-m
+
 ### S-Map
 
 -   rho_theta_e3

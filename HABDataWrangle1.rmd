@@ -242,6 +242,7 @@ write_csv(USGSoutput, file = "USGSoutput.csv")
 CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')
 ```
 
+
 ```{r}
 # Pull raw CRBACTERIA
 fname_CR_bacteria <- "./data/raw/CR_bacteria.Rdata"
@@ -350,12 +351,17 @@ CR_physical <- data.frame(lapply(CR_physical, as.character))
 CR_secchi <- data.frame(lapply(CR_secchi, as.character))
 CR_nutrients <- data.frame(lapply(CR_nutrients, as.character))
 
+```
+
+```{r}
 
 write.csv(CR_bacteria, file = "CR_bacteria.csv")
 write.csv(CR_physical, file = "CR_physical.csv")
 write.csv(CR_secchi, file = "CR_secchi.csv")
 write.csv(CR_nutrients, file = "CR_nutrients.csv")
 ```
+
+
 
 ### CRWA
 
@@ -384,6 +390,7 @@ CRWAtypes <- CRWAdata %>% distinct(CRWAdata$Component_ID) #remove duplicate data
 Component_ID2 <- CRWAtypes
 
 ```
+
 
 ```{r}
 #SITE IDs
@@ -639,17 +646,18 @@ left_join(MergedMWRACSO , MWRACSOCoords ,  by = c("CSO_ID" = "OUTFALL"  ))
 
 #MWRACSOFinal <-  
 #left_join(MergedMWRACSO , MWRACSOCoords2 ,  by = c("CSO_ID" = "OUTFALL_ID"  ))
+
 ```
 
 ```{r}
 write_csv(MWRACSOFinal, file = "MWRACSOs.csv") 
 ```
 
-### 
 
 ### Precip
 
 ```{r}
+Daynet 
 
 ```
 
