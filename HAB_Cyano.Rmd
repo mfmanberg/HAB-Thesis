@@ -3,6 +3,18 @@ title: "HAB_Cyano"
 output: html_document
 date: "2024-03-07"
 ---
+#Library
+
+```{r}
+library(tidyverse)
+library(googlesheets4)
+library(oce)
+library(padr)
+library(rEDM)
+library(ggplot2)
+library(zoo)
+
+```
 
 ```{r}
 #Charles River
@@ -83,48 +95,69 @@ mutate(del_phy = phy - lag(phy,1))
 ```
 
 
-### CRWA
-
-```{r}
-CRWAdata <- read_sheet('https://docs.google.com/spreadsheets/d/1pJxZbbWJUtoLKJ9lX6DA09esBOZdVCDiB4Ztd92hrtE/edit?usp=sharing')
-```
-
-```{r}
-
-
- # do something about Results that are "<10.0". turn into 0 for now?
-
-#CRWAdata <- CRWAdata %>%
-  #mutate( = ifelse(Value == "<10.0", 0, as.numeric(Value)))
-
-CRWAdata_wide <- CRWAdata %>%
-  select(Site_ID,Date_Collected,
-         Time_Collected,Component_ID,Reporting_Result) %>%
-  group_by(Site_ID,Date_Collected,Time_Collected,Component_ID) %>%
-  summarise(Reporting_Result = mean(Reporting_Result,na.rm=T),.groups = "keep") %>%
-  pivot_wider(names_from= Component_ID,values_from=Reporting_Result)
-
-
-#Data types
-CRWAtypes <- CRWAdata %>% distinct(CRWAdata$Component_ID) #remove duplicate data
-Component_ID2 <- CRWAtypes
-
-```
-
-
 #CYANO COUNTS
 
 ```{r}
+
+MDPH <- read_sheet('https://docs.google.com/spreadsheets/d/1HeVNoOE7Z_eYGcaoJxT9GQlHMzJcTPW8jMsImqoyCRw/edit?usp=sharing')
 
 MDPH2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1HeVNoOE7Z_eYGcaoJxT9GQlHMzJcTPW8jMsImqoyCRw/edit?usp=sharing', sheet = 2)
 
 MDPH2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1HeVNoOE7Z_eYGcaoJxT9GQlHMzJcTPW8jMsImqoyCRw/edit?usp=sharing', sheet = 3)
 
-MaxPaper20152019 <-  read_sheet('https://docs.google.com/spreadsheets/d/1K0FwgETetaCSKT7jng0CzTzppFn3p7Q3QiKy8oqbZnc/edit?usp=sharing', sheet = 3)
-
+MaxPaper20152019 <-  read_sheet('https://docs.google.com/spreadsheets/d/1K0FwgETetaCSKT7jng0CzTzppFn3p7Q3QiKy8oqbZnc/edit?usp=sharing')
 
 
 ```
+
+```{r}
+
+
+# Subset columns "Site_ID", "Date", and "Cyanobacteria (cells/mL)" from each data frame
+MaxPaper20152019_subset <- MaxPaper20152019[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+MDPH_subset <- MDPH[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+MDPH2020_subset <- MDPH2020[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+MDPH2022_subset <- MDPH2022[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+
+ #Convert numeric columns (excluding "Date" and "Site_ID")
+MDPH_subset <- MDPH_subset %>%
+  mutate_at(vars(-one_of(exclude_cols)), ~ as.numeric(as.character(.)))
+
+MDPH2022_subset <- MDPH2022_subset %>%
+  mutate_at(vars(-one_of(exclude_cols)), ~ as.numeric(as.character(.)))
+
+MDPH2020_subset <- MDPH2020_subset %>%
+  mutate_at(vars(-one_of(exclude_cols)), ~ as.numeric(as.character(.)))
+
+MaxPaper20152019_subset <- MaxPaper20152019_subset %>%
+  mutate_at(vars(-one_of(exclude_cols)), ~ as.numeric(as.character(.)))
+
+# Bind rows from the subsetted data frames
+All.Cyano <- bind_rows(MaxPaper20152019_subset, MDPH_subset, MDPH2020_subset, MDPH2022_subset)
+
+
+```
+
+
+```{r}
+
+#omit
+
+All.Cyano <- na.omit(All.Cyano)
+
+#combine data
+ag_All.Cyano <- All.cyano %>%
+group_by(Date) %>%
+  summarise(Site_ID = Site_ID, Cyanobacteria (cells/mL) = mean(Cyanobacteria (cells/mL)))
+
+ag_All.Cyano <- All.Cyano %>%
+  group_by(Date) %>%
+  summarise(Site_ID = first(Site_ID), `Cyanobacteria (cells/mL)` = mean(`Cyanobacteria (cells/mL)`, na.rm = TRUE))
+
+
+```
+
+
 
 #PLOTS
 
@@ -139,11 +172,53 @@ ag_df_CR <- ag_df_CR %>% pad()
 
 #2015
 ```{r}
-#PHY
-ag_df_CR %>% group_by(date) %>%
-  filter(year(date) == 2015) %>%
-  ggplot(aes(x=date)) + 
-  geom_path(aes(y=phy,color="phy"))
+
+# Convert "Date" to proper date format
+ag_df_CR$date <- as.Date(ag_df_CR$date)
+
+#LAST CODE!!!
+# Plot ag_df_CR
+ggplot(ag_df_CR_2015, aes(x = date, y = phy, color = "phy")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2015-05-01", "2015-10-30")))  # Set x-axis limits
+
+
+# Plot ag_df_CR
+ggplot(ag_df_CR_2015, aes(x = date, y = phy, color = "phy")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 week", date_labels = "%W") +  # Show all weeks on the x-axis
+  coord_cartesian(xlim = as.Date(c("2015-05-01", "2015-11-30")))  # Set x-axis limits
+
+
+
+   scale_x_date(date_breaks = "1 month", date_labels = "%b")  # Show all months on the x-axis
+
+
+# Plot ag_df_CR
+ggplot(ag_df_CR_2015, aes(x = date, y = phy, color = "phy")) + 
+  geom_path() +
+  # Add points from ag_All.Cyano
+  geom_point(data = ag_All.Cyano_2015, aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
+  labs(color = "Data") +  # Customize legend title
+  lims(x = as.Date(c("2015-05-01", "2015-11-30")))  # Set x-axis limits
+
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+
+
+
+
+# Filter ag_All.Cyano for the year 2015
+ag_All.Cyano_2015 <- ag_All.Cyano %>%
+  filter(year(Date) == 2015)
+
+# Plot ag_df_CR
+ggplot(ag_df_CR_2015, aes(x = date, y = phy, color = "phy")) + 
+  geom_path() +
+  # Add points from ag_All.Cyano
+  geom_point(data = ag_All.Cyano_2015, aes(x = Date, y = `Cyanobacteria (cells/mL)` / 1000000, color = Site_ID)) +
+  labs(color = "Data", y = "Cyanobacteria (cells/mL) (x10^-3)") +  # Customize legend title and y-axis label
+  scale_y_continuous(labels = scales::scientific_format(10^-3))  # Set y-axis labels as scientific notation
 
 #CHL
 ag_df_CR %>% group_by(date) %>%

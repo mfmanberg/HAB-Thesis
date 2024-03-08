@@ -3,7 +3,7 @@ title: "HAB_CCM"
 output: html_document
 date: "2024-02-01"
 ---
-###Get Phy
+#Library
 
 ```{r}
 library(tidyverse)
@@ -12,9 +12,17 @@ library(oce)
 library(padr)
 library(rEDM)
 library(ggplot2)
+library(zoo)
 
 ```
 
+
+#Vignette
+```{r}
+vignette('rEDM-tutorial')
+```
+
+#Load 
 ```{r}
 #Charles River
 #Reads data into R
@@ -703,57 +711,47 @@ this is where you do bootstrap, subsets of data ex: 100, do 100 n number of rand
 
 ##PH
 
+#CMAP
 ```{r}
-ph.del.cor <- cor(cmap.ph.del)
+ag_df_CR <- na.omit(ag_df_CR)
+
+cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.ph.phy <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 
-# Define a function to calculate correlation
-calculate_correlation <- function(row, ref_column) {
-  cor(row[-1], ref_column)
-}
+```
 
-# Apply the function row-wise
-correlations <- apply(cmap.ph.del[, -1], 1, calculate_correlation, cmap.ph.del$LibSize)
+#Convert CMAP Skeleton
+```{r}
+
+ph.del.corr <- cor(cmap.ph.del)
+ph.del.corr <- ph.del.corr[1, 3]
+
+ph.phy.corr <- cor(cmap.ph.phy)
+ph.phy.corr <- ph.phy.corr[1, 3]
 
 
-# Add correlations to the CMAP data frame
-cmap.ph.del$correlations <- correlations
+#ph.del
+plot(x = cmap.ph.del[,1], y = cmap.ph.del[,2], type = "l",
+     main = "Ph V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.ph.del[,1], y = cmap.ph.del[,3], col = "red")
+abline(h = ph.del.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.ph.del)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+#ph.phy
+plot(x = cmap.ph.phy[,1], y = cmap.ph.phy[,2], type = "l",
+     main = "Ph V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.ph.phy[,1], y = cmap.ph.phy[,3], col = "red")
+abline(h = ph.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.ph.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
 
 
-plot(cmap.ph.del)
 ```
 
 
 ```{r}
-
-cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
-
-ph.del.cor <- cor(cmap.ph.del)
-
-plot.cmap.ph.del <- plot(x = cmap.ph.del$LibSize, y = cmap.ph.del$`ph:del_phy`)
-plot(x = cmap.ph.del$LibSize, y = cmap.ph.del$`ph:del_phy`, type = "l",
-     main = "Line Plot", xlab = "LibSize", ylab = "ph:del_phy")
-
-# Add a line to the plot
-lines(x = cmap.ph.del$LibSize, y = cmap.ph.del$`ph:del_phy`, col = "red")
-
-
-abline(h = 0.8738390, col = "red")
-
-  
-
-correlations <- apply(cmap.ph.del , 1, function(x) cor(x, CMAP))
-
-cmap.ph.del + geom_abline(slope = 0.8738390, intercept = 0, color = "red")
-
-# Extract the ggplot object from the CCM plot
-ggplot_obj <- as.ggplot(CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE))
-
-# Modify the ggplot object as needed
-ggplot_obj + geom_hline(yintercept = 0.8738390, color = "red")
-plot.new<- cmap.ph.del + abline(y = 0.8738390, color = "red")
-
-
 
 cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
@@ -761,6 +759,7 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "phy",
 
 
 ```
+
 ```{r}
 
 
@@ -815,12 +814,35 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "spcond", target = "c
 
 #DO
 
+
+
+```{r}
+cmap.do.phy <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+#abline(h = corr_matrix["do", "phy"], col = "black", lty = 2)
+
+do.phy.corr <- cor(cmap.do.phy)
+do.phy.corr <- do.phy.corr[1, 3]
+
+
+#ph.del
+plot(x = cmap.do.phy[,1], y = cmap.do.phy[,2], type = "l",
+     main = "do V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.do.phy[,1], y = cmap.do.phy[,3], col = "red")
+abline(h = do.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.do.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+
+```
+
+
+
+
+
 ```{r}
 
 cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "del_phy", libSizes = "20 200 10 ", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE) 
-
 
 cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
