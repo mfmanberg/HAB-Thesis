@@ -22,29 +22,119 @@ library(zoo)
 vignette('rEDM-tutorial')
 ```
 
-#Load 
+
 ```{r}
-#Charles River
-#Reads data into R
-CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
 
+#CR2023
+
+if (file.exists("CR2023.rds")) {
+  # If it's saved locally, load the data
+  CR2023 <- readRDS("CR2023.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+  saveRDS(CR2023, "CR2023.rds")
+}
+
+#CR2022
+
+if (file.exists("CR2022.rds")) {
+  # If it's saved locally, load the data
+  CR2022 <- readRDS("CR2022.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
 CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+  saveRDS(CR2022, "CR2022.rds")
+}
 
+#CR2021
+
+if (file.exists("CR2021.rds")) {
+  # If it's saved locally, load the data
+  CR2021 <- readRDS("CR2021.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
 CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+  saveRDS(CR2021, "CR2021.rds")
+}
 
+
+#CR2020
+
+
+if (file.exists("CR2020.rds")) {
+  # If it's saved locally, load the data
+  CR2020 <- readRDS("CR2020.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
 CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+  saveRDS(CR2020, "CR2020.rds")
+}
 
+
+#CR2019
+
+if (file.exists("CR2019.rds")) {
+  # If it's saved locally, load the data
+  CR2019 <- readRDS("CR2019.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
 CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+  saveRDS(CR2019, "CR2019.rds")
+}
 
+
+#CR2018
+
+
+if (file.exists("CR2018.rds")) {
+  # If it's saved locally, load the data
+  CR2018 <- readRDS("CR2018.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
 CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+  saveRDS(CR2018, "CR2018.rds")
+}
 
-CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/18xDJ9cLaZuj3JqhFsf847nSLMGKjfvWZmHWifsrPBq8/edit?usp=sharing')
 
+#CR2017
+
+if (file.exists("CR2017.rds")) {
+  # If it's saved locally, load the data
+  CR2017 <- readRDS("CR2018.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+  saveRDS(CR2017, "CR2017.rds")
+}
+
+#CR2016
+
+
+if (file.exists("CR2016.rds")) {
+  # If it's saved locally, load the data
+  CR2016 <- readRDS("CR2016.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
 CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+  saveRDS(CR2017, "CR2016.rds")
+}
 
+
+#CR2015
+
+if (file.exists("CR2015.rds")) {
+  # If it's saved locally, load the data
+  CR2015 <- readRDS("CR2015.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
 CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+  saveRDS(CR2015, "CR2015.rds")
+}
 
-#Prints the data
+
+
+
 ```
 
 ```{r}
@@ -208,14 +298,55 @@ ag_Logan <- Logan %>%
 ```{r}
 #READ DATA IN
 
+#CR_bacteria
 
-CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')
+if (file.exists("CR_bacteria.rds")) {
+  # If it's saved locally, load the data
+  CR_bacteria <- readRDS("CR_bacteria.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')  
+saveRDS(CR_bacteria, "CR_bacteria.rds")
+}
 
+#CR_secchi
+
+
+if (file.exists("CR_secchi.rds")) {
+  # If it's saved locally, load the data
+ CR_secchi <- readRDS("CR_secchi.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
 CR_secchi <- read_sheet('https://docs.google.com/spreadsheets/d/1fW4_60i-SYkdTPlFQQdN0b5nlZirc2uQyjDN_dvWA18/edit?usp=sharing', range = 'cr_secchi')
+saveRDS(CR_secchi, "CR_secchi.rds")
+}
 
+
+#CR_physical 
+
+if (file.exists("CR_physical.rds")) {
+  # If it's saved locally, load the data
+ CR_physical <- readRDS("CR_physical.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
 CR_physical <- read_sheet('https://docs.google.com/spreadsheets/d/1P5kzPHFABPTKffxM2yQBTIQWq9NAmnGd3PF6kOsSFNU/edit?usp=sharing', range = 'cr_physical')
+saveRDS(CR_physical, "CR_physical")
+}
+
+#CR_nutrients
+
+if (file.exists("CR_nutrients.rds")) {
+  # If it's saved locally, load the data
+ CR_nutrients <- readRDS("CR_nutrients.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR_nutrients <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
+saveRDS(CR_physical, "CR_nutrientsl")
+}
 
 CR_nutrients <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
+
+
 
 ```
 
@@ -416,7 +547,6 @@ ag_CR_secchi <-CR_secchi_011 %>%
 
 
 ```
-
 
 
 
@@ -715,10 +845,27 @@ this is where you do bootstrap, subsets of data ex: 100, do 100 n number of rand
 ```{r}
 ag_df_CR <- na.omit(ag_df_CR)
 
-cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 400 20", sample = 100, showPlot = TRUE,includeData = TRUE)
 
-cmap.ph.phy <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.ph.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 400 20", sample = 100, showPlot = TRUE,includeData = TRUE)
 
+
+# ag_df_CR %>% ggplot(aes(x=ph,y=phy)) + geom_point()
+cmap.ph.phy$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`ph:phy`,color="ph:phy")) +
+  geom_line(aes(y=`phy:ph`,color="phy:ph")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$phy)),lty=2)
+
+
+cmap.ph.phy$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+
+EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "ph",
+               target = "phy",lib="1 1174",pred="1 1174",
+               tau=-7)
 
 ```
 
@@ -1003,3 +1150,43 @@ ccm wraps (Simplex target = x, columns = y)
 multivariate 
 Simplex ( Embedded = True, columns = c("x1, "x2)) 
 set CCM samples to 10 to see result 
+
+
+
+```{r}
+#1 is get the tau/Tp sorted
+
+
+But when we get to multivariate, can include the seasonal cycle:
+
+yday(as.Date("2024-03-01"))
+df_example <- data.frame(seq(as.Date("2010-01-01"),by=1,length.out=3000))
+df_example <- data.frame(Date=seq(as.Date("2010-01-01"),by=1,length.out=3000))
+df_example <- df_example %>% mutate(yday = yday(Date))
+head(df_example)
+df_example <- df_example %>% mutate(sin_season = sin(2*pi*yday/365))
+df_example %>% ggplot(aes(x=Date,y=sin_season)) + geom_line()
+
+
+
+```
+
+pH of fresh sewage is more than 7 (average range is 7.5-9.5) and fresh sewage is alkaline in nature. pH of septic sewage is less than 7 (average range is 6.5-4.5) and septic sewage is acidic in nature.
+
+Source: "TestBook"
+
+
+
+https://rdrr.io/cran/rEDM/man/SurrogateData.html#google_vignette
+https://www.r-bloggers.com/2023/11/navigating-quantile-regression-with-r-a-comprehensive-guide/
+Mean trendline + median Trendline
+Plot Points
+
+mean_y <- mean(data$y)
+ggplot(data, aes(x = x, y = y)) +
+  geom_point() +
+  geom_hline(yintercept = mean_y, color = "red", linetype = "dashed") +
+  labs(title = "Mean Trendline Example", x = "X-axis", y = "Y-axis")
+critical values of pearson's correlation coefficent 
+
+ggplot geomplot 

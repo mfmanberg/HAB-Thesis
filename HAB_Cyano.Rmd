@@ -119,6 +119,10 @@ MDPH_subset <- MDPH[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
 MDPH2020_subset <- MDPH2020[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
 MDPH2022_subset <- MDPH2022[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
 
+
+# Columns to exclude from conversion
+exclude_cols <- c("Date", "Site_ID")
+
  #Convert numeric columns (excluding "Date" and "Site_ID")
 MDPH_subset <- MDPH_subset %>%
   mutate_at(vars(-one_of(exclude_cols)), ~ as.numeric(as.character(.)))
@@ -154,8 +158,116 @@ ag_All.Cyano <- All.Cyano %>%
   group_by(Date) %>%
   summarise(Site_ID = first(Site_ID), `Cyanobacteria (cells/mL)` = mean(`Cyanobacteria (cells/mL)`, na.rm = TRUE))
 
+```
+
+
+
+#CRWA Cyano Counts 
+```{r}
+https://docs.google.com/spreadsheets/d/1P8_Tv6YnqysdLAwesoREWUTKg1T8-97k5a46wRz79u0/edit?usp=sharing
 
 ```
+ 
+#Previous CRWA CODE
+
+```{r}
+
+
+ # do something about Results that are "<10.0". turn into 0 for now?
+
+#CRWAdata <- CRWAdata %>%
+  #mutate( = ifelse(Value == "<10.0", 0, as.numeric(Value)))
+
+CRWAdata_wide <- CRWAdata %>%
+  select(Site_ID,Date_Collected,
+         Time_Collected,Component_ID,Reporting_Result) %>%
+  group_by(Site_ID,Date_Collected,Time_Collected,Component_ID) %>%
+  summarise(Reporting_Result = mean(Reporting_Result,na.rm=T),.groups = "keep") %>%
+  pivot_wider(names_from= Component_ID,values_from=Reporting_Result)
+
+
+#Data types
+CRWAtypes <- CRWAdata %>% distinct(CRWAdata$Component_ID) #remove duplicate data
+Component_ID2 <- CRWAtypes
+
+```
+
+
+```{r}
+#SITE IDs
+CRWAMap_stations <- read_sheet('https://docs.google.com/spreadsheets/d/1mkNv-07loU1pDz8SWE0spoa-phkgEL65I69Hi26P3Rc/edit?usp=sharing')
+CRWAMap_stations <- CRWAMap_stations[-c(2,6:23)] #remove columns
+
+
+```
+
+```{r}
+#Combine DFs
+CRWAfinal <-  
+right_join(CRWAdata_wide , CRWAMap_stations,  by = c("Site_ID"  = "Site_ID"))
+
+write.csv(CRWAfinal, file = "CRWAfinal.csv")
+```
+
+
+#EPA Cyano Counts 
+
+```{r}
+
+CyanoEPA2015.1 <- read_sheet('https://docs.google.com/spreadsheets/d/1YjTl7x6zHcui_U961o0Kez5URcWhF2uYE6QHGnK1Sy0/edit?usp=sharing')
+
+
+CyanoEPA2015.2 <- read_sheet('https://docs.google.com/spreadsheets/d/1nE4dxDyJYQCrRyeFfUY9ogNmjagzCA8mHnZlUCm5DxY/edit?usp=sharing')
+
+
+CyanoEPA2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1va3luWGR-wbgF6peO5kFiGG3Eg9Fleo2bu3edjQmR_s/edit?usp=sharing')
+
+
+CyanoEPA2017 <- read_sheet('https://docs.google.com/spreadsheets/d/100ac4ZqGQpqpvcEuHzxfOX97lCt4lGz_eGdpo3K0vfU/edit?usp=sharing')
+
+
+CyanoEPA2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1RJ_FSBPtUrrxPRLI1G8IDwtaHq3jyrfoXuDTLBJr8Kg/edit?usp=sharing')
+
+CyanoEPA2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1B3Aeg-TlOdLnrAinK7D2KTKvTCtiM2KRMK9Tx8wYz3Q/edit?usp=sharing')
+
+
+CyanoEPA2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1q7xMi6thpArfeoH-xV3QAPg2_7nhTatp3BZ6cb8g4NQ/edit?usp=sharing')
+
+CyanoEPA2015.1_subset <- CyanoEPA2015.1[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+CyanoEPA2015.2_subset  <- CyanoEPA2015.2[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+CyanoEPA2016_subset <- CyanoEPA2016[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+CyanoEPA2017_subset <- CyanoEPA2017[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+CyanoEPA2019_subset <- CyanoEPA2019[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+CyanoEPA2021_subset <- CyanoEPA2021[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+CyanoEPA2022_subset <- CyanoEPA2022[, c("Site_ID", "Date", "Cyanobacteria (cells/mL)")]
+
+
+MaxPaper20152019_subset$Date <- as.Date(MaxPaper20152019_subset$Date)
+MDPH_subset$Date <- as.Date(MDPH_subset$Date)
+MDPH2020_subset$Date <- as.Date(MDPH2020_subset$Date)
+MDPH2022_subset$Date <- as.Date(MDPH2022_subset$Date)
+CyanoEPA2015.1_subset$Date <- as.Date(CyanoEPA2015.1_subset$Date, format = "%m/%d/%Y")
+CyanoEPA2015.2_subset$Date <- as.Date(CyanoEPA2015.2_subset$Date, format = "%m/%d/%Y")
+CyanoEPA2016_subset$Date <- as.Date(CyanoEPA2016_subset$Date, format = "%m/%d/%Y")
+CyanoEPA2017_subset$Date <- as.Date(CyanoEPA2017_subset$Date, format = "%m/%d/%Y")
+CyanoEPA2019_subset$Date <- as.Date(CyanoEPA2019_subset$Date, format = "%m/%d/%Y")
+CyanoEPA2021_subset$Date <- as.Date(CyanoEPA2021_subset$Date, format = "%m/%d/%Y")
+CyanoEPA2022_subset$Date <- as.Date(CyanoEPA2022_subset$Date, format = "%m/%d/%Y")
+
+All.Cyano <- bind_rows(MaxPaper20152019_subset, MDPH_subset, MDPH2020_subset, MDPH2022_subset, CyanoEPA2015.1_subset, CyanoEPA2015.2_subset, CyanoEPA2016_subset, CyanoEPA2017_subset, CyanoEPA2019_subset,  CyanoEPA2021_subset, CyanoEPA2022_subset )
+
+
+
+
+```
+
+
+
+
+
+
+
+
 
 
 
@@ -176,41 +288,269 @@ ag_df_CR <- ag_df_CR %>% pad()
 # Convert "Date" to proper date format
 ag_df_CR$date <- as.Date(ag_df_CR$date)
 
-#LAST CODE!!!
-# Plot ag_df_CR
-ggplot(ag_df_CR_2015, aes(x = date, y = phy, color = "phy")) + 
+ag_df_CR <- ag_df_CR %>% pad()
+
+
+
+All.Cyano %>%
+  group_by(Date) %>%
+  filter(year(Date) == 2015) %>%
+  ggplot(aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
+  geom_point() +
+  labs(title = "2015 Cyano")
+
+All.Cyano %>%
+  group_by(Date) %>%
+  filter(year(Date) == 2016) %>%
+  ggplot(aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
+  geom_point() +
+  labs(title = "2016 Cyano")
+
+
+All.Cyano %>%
+  group_by(Date) %>%
+  filter(year(Date) == 2017) %>%
+  ggplot(aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
+  geom_point()+
+  labs(title = "2017 Cyano")
+
+All.Cyano %>%
+  group_by(Date) %>%
+  filter(year(Date) == 2018) %>%
+  ggplot(aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
+  geom_point()+
+  labs(title = "2018 Cyano")
+
+
+All.Cyano %>%
+  group_by(Date) %>%
+  filter(year(Date) == 2019) %>%
+  ggplot(aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
+  geom_point()+
+  labs(title = "2019 Cyano")
+
+
+All.Cyano %>%
+  group_by(Date) %>%
+  filter(year(Date) == 2020) %>%
+  ggplot(aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
+  geom_point()+
+  labs(title = "2020 Cyano")
+
+
+
+All.Cyano %>%
+  group_by(Date) %>%
+  filter(year(Date) == 2021) %>%
+  ggplot(aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
+  geom_point()+
+  labs(title = "2021 Cyano")
+
+
+
+All.Cyano %>%
+  group_by(Date) %>%
+  filter(year(Date) == 2022) %>%
+  ggplot(aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
+  geom_point()+
+  labs(title = "2022 Cyano")
+
+
+
+
+#2015
+##PHY
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
   geom_path() +
   scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
-  coord_cartesian(xlim = as.Date(c("2015-05-01", "2015-10-30")))  # Set x-axis limits
+  coord_cartesian(xlim = as.Date(c("2015-05-10", "2015-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "orange", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2015 PHY")
+
+#CHL
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2015-05-10", "2015-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "green", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2015 CHL")
+
+#2016
+##PHY
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2016-05-10", "2016-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "orange", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2016 PHY")
+
+#CHL
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2016-05-10", "2016-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "green", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2016 CHL")
 
 
+#2017
+##PHY
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2017-05-10", "2016-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "orange", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2017 PHY")
+
+#CHL
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2017-05-10", "2017-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "green", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2017 CHL")
+
+
+#2018
+##PHY
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2018-05-10", "2018-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "orange", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2018 PHY")
+
+#CHL
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2018-05-10", "2018-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "green", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2018 CHL")
+
+
+#2019
+##PHY
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2019-05-10", "2019-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "orange", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2019 PHY")
+
+#CHL
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2019-05-10", "2019-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "green", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2019 CHL")
+
+
+
+#2020
+##PHY
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2020-05-10", "2020-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "orange", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2020 PHY")
+
+#CHL
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2020-05-10", "2020-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "green", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2020 CHL")
+
+
+
+
+#2021
+##PHY
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2021-05-10", "2021-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "orange", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2021 PHY")
+
+#CHL
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2021-05-10", "2021-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "green", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2021 CHL")
+
+
+
+
+#2022
+##PHY
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2022-05-10", "2022-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "orange", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2022 PHY")
+
+#CHL
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2022-05-10", "2022-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "green", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2022 CHL")
+
+
+
+#2023
+##PHY
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2023-05-10", "2023-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "orange", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2023 PHY")
+
+#CHL
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "line")) + 
+  geom_path() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
+  coord_cartesian(xlim = as.Date(c("2023-05-10", "2023-10-25"))) +  # Set x-axis limits
+  scale_color_manual(values = "green", labels = "phy") + # Specify the color and label for the legend
+    labs(title = "2023 CHL")
+
+
+
+
+
+
+```
+
+divide by std dev 
+
+
+
+```{r}
+
+
+
+
+
+
+#WEEKS
 # Plot ag_df_CR
-ggplot(ag_df_CR_2015, aes(x = date, y = phy, color = "phy")) + 
+ggplot(ag_df_CR, aes(x = date, y = phy, color = "phy")) + 
   geom_path() +
   scale_x_date(date_breaks = "1 week", date_labels = "%W") +  # Show all weeks on the x-axis
   coord_cartesian(xlim = as.Date(c("2015-05-01", "2015-11-30")))  # Set x-axis limits
 
 
 
-   scale_x_date(date_breaks = "1 month", date_labels = "%b")  # Show all months on the x-axis
-
-
-# Plot ag_df_CR
-ggplot(ag_df_CR_2015, aes(x = date, y = phy, color = "phy")) + 
-  geom_path() +
-  # Add points from ag_All.Cyano
-  geom_point(data = ag_All.Cyano_2015, aes(x = Date, y = `Cyanobacteria (cells/mL)`, color = Site_ID)) +
-  labs(color = "Data") +  # Customize legend title
-  lims(x = as.Date(c("2015-05-01", "2015-11-30")))  # Set x-axis limits
-
-  scale_x_date(date_breaks = "1 month", date_labels = "%b") +  # Show all months on the x-axis
-
-
-
-
-# Filter ag_All.Cyano for the year 2015
-ag_All.Cyano_2015 <- ag_All.Cyano %>%
-  filter(year(Date) == 2015)
 
 # Plot ag_df_CR
 ggplot(ag_df_CR_2015, aes(x = date, y = phy, color = "phy")) + 
@@ -228,6 +568,11 @@ ag_df_CR %>% group_by(date) %>%
 
 
 ```
+
+
+
+
+
 
 #2016
 ```{r}
@@ -367,4 +712,14 @@ ag_df_CR %>% group_by(date) %>%
 
 
 ```
+
+
+
+
+
+
+
+
+
+
 
