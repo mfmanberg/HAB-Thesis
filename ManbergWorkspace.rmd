@@ -14,3 +14,149 @@ Packages:
 install.packages("tidyverse")
 install.packages("lubridate")
 install.packages('googlesheets4')
+
+
+
+OLD googlesheets
+
+
+```{r}
+
+#CR2023
+
+if (file.exists("CR2023.rds")) {
+  # If it's saved locally, load the data
+  CR2023 <- readRDS("CR2023.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+  saveRDS(CR2023, "CR2023.rds")
+}
+
+#CR2022
+
+if (file.exists("CR2022.rds")) {
+  # If it's saved locally, load the data
+  CR2022 <- readRDS("CR2022.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+  saveRDS(CR2022, "CR2022.rds")
+}
+
+#CR2021
+
+if (file.exists("CR2021.rds")) {
+  # If it's saved locally, load the data
+  CR2021 <- readRDS("CR2021.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+  saveRDS(CR2021, "CR2021.rds")
+}
+
+
+#CR2020
+
+
+if (file.exists("CR2020.rds")) {
+  # If it's saved locally, load the data
+  CR2020 <- readRDS("CR2020.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+  saveRDS(CR2020, "CR2020.rds")
+}
+
+
+#CR2019
+
+if (file.exists("CR2019.rds")) {
+  # If it's saved locally, load the data
+  CR2019 <- readRDS("CR2019.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+  saveRDS(CR2019, "CR2019.rds")
+}
+
+
+#CR2018
+
+
+if (file.exists("CR2018.rds")) {
+  # If it's saved locally, load the data
+  CR2018 <- readRDS("CR2018.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+  saveRDS(CR2018, "CR2018.rds")
+}
+
+
+#CR2017
+
+if (file.exists("CR2017.rds")) {
+  # If it's saved locally, load the data
+  CR2017 <- readRDS("CR2018.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+  saveRDS(CR2017, "CR2017.rds")
+}
+
+#CR2016
+
+
+if (file.exists("CR2016.rds")) {
+  # If it's saved locally, load the data
+  CR2016 <- readRDS("CR2016.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+  saveRDS(CR2017, "CR2016.rds")
+}
+
+
+#CR2015
+
+if (file.exists("CR2015.rds")) {
+  # If it's saved locally, load the data
+  CR2015 <- readRDS("CR2015.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+  saveRDS(CR2015, "CR2015.rds")
+}
+
+
+
+
+```
+
+
+#using simplex 
+
+```{r}
+
+lib_ins <- c(1,992) # data up through end of 2022; this is the training set
+lib_oos <- c(993,1138) # leave this alone until we're nearly done with the project
+
+cmap <- Simplex(dataFrame = ag_df_CR, lib = lib_ins, pred = lib_ins, target = "del_phy", columns = "ph", Tp = 0, E = 4)
+
+head(cmap)
+plot(cmap)
+
+
+ag_df_CRPredict <- Simplex(dataFrame = ag_df_CR, pred = "1076 1223", target = "chl",
+columns = "chl", E = 4)
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", , sample = 10, showPlot = TRUE)
+
+```
+
+
+
+
+
+

@@ -32,7 +32,7 @@ if (file.exists("CR2023.rds")) {
   CR2023 <- readRDS("CR2023.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
-  CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1sMKGzW71qErP8DIrxWDvlgqN3o9MrprLjjAFGsOie3I/edit?usp=sharing')
   saveRDS(CR2023, "CR2023.rds")
 }
 
@@ -43,7 +43,7 @@ if (file.exists("CR2022.rds")) {
   CR2022 <- readRDS("CR2022.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
-CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1F5l-1dWi7EFOaEKf9o3eUBi6BgQOrC1Rj_lVNRPrx5U/edit?usp=sharing', sheet = 2)
   saveRDS(CR2022, "CR2022.rds")
 }
 
@@ -54,7 +54,7 @@ if (file.exists("CR2021.rds")) {
   CR2021 <- readRDS("CR2021.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
-CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1vaDoymaAQmNFKqIgo1LStI7GQSKDeIqLy7We85IA3Oo/edit?usp=sharing', sheet = 2)
   saveRDS(CR2021, "CR2021.rds")
 }
 
@@ -67,7 +67,7 @@ if (file.exists("CR2020.rds")) {
   CR2020 <- readRDS("CR2020.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
-CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1Qvt0PIK4wPFPKbkM98pSQp9TbPsu_a6frTWFKv3aNQ4/edit?usp=sharing', sheet = 2)
   saveRDS(CR2020, "CR2020.rds")
 }
 
@@ -79,7 +79,7 @@ if (file.exists("CR2019.rds")) {
   CR2019 <- readRDS("CR2019.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
-CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1PGZCChA-8HU-cLvPSxqrxd89gLTletDYgogMGwv4Dg4/edit?usp=sharing')
   saveRDS(CR2019, "CR2019.rds")
 }
 
@@ -92,7 +92,7 @@ if (file.exists("CR2018.rds")) {
   CR2018 <- readRDS("CR2018.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
-CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/1CO0DHuKb3C-hE9z-r5yR-SXwPnZWZg4vQDuEtRv2r7k/edit?usp=sharing', sheet = 2)
   saveRDS(CR2018, "CR2018.rds")
 }
 
@@ -104,7 +104,7 @@ if (file.exists("CR2017.rds")) {
   CR2017 <- readRDS("CR2018.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
-CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/11SO-RxRhcc4qqn3gRt4n13JWClFoG--kISMoPAR2FRA/edit?usp=sharing', sheet = 2)
   saveRDS(CR2017, "CR2017.rds")
 }
 
@@ -116,7 +116,7 @@ if (file.exists("CR2016.rds")) {
   CR2016 <- readRDS("CR2016.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
-CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1sMcEOIzxPTUZ93-pTJBE0lQ3SI8kKihLZRdpZ32_Lyw/edit?usp=sharing', sheet = 2)
   saveRDS(CR2017, "CR2016.rds")
 }
 
@@ -128,14 +128,14 @@ if (file.exists("CR2015.rds")) {
   CR2015 <- readRDS("CR2015.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
-CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/1t5joquxku9OfQGDdsabp-GdR2sUw8hPDcwatC3SL90Q/edit?usp=sharing', sheet = 2)
   saveRDS(CR2015, "CR2015.rds")
 }
 
 
-
-
 ```
+
+
 
 ```{r}
 #bind rows
@@ -157,12 +157,7 @@ df_CR <- df_CR %>%
   select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`, ph=`ph`, Celsius =`temp c`,  spcond = `spcond (ms/cm)`, do = `do (mg/l)`,turb = `turbidity (fnu)` )
   
 #%>% rename(`time est`=time)
-
-```
-
-
 #Aggregate Values Daily
-```{r}
 df_CR$Salinity <- 
 
   swSCTp(
@@ -179,16 +174,37 @@ ag_df_CR <-df_CR %>%
    group_by(date) %>%
   summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
 
+
 ```
+
+```{r}
+
 
 ### First Diff Phy
 
-```{r}
-ag_df_CR <- ag_df_CR %>% pad %>%
+del_phy_ag_df_CR <- ag_df_CR %>% pad %>%
 mutate(del_phy = phy - lag(phy,1))
  ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+ 
+ 
+```
+
+
+
+
+```{r}
+#ag_df_CR
+
+if (file.exists("ag_df_CR.rds")) {
+  # If it's saved locally, load the data
+  ag_df_CR <- readRDS("ag_df_CR.rds")
+} else {
+  saveRDS(ag_df_CR, "ag_df_CR.rds")
+}
+
 
 ```
+
 
 
 
@@ -821,12 +837,6 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", ta
 ```
 
 
-
-###CCM EPA BUOY
-```{r}
-ag_df_CR <- na.omit(ag_df_CR)
-```
-
 CCM LibSizes Explained
 - CCM is wraps a bunch of straps for doing cross map prediction for subsets of the data
 - result is plotted is Cross Map Skill as amount of data used (L library size) 
@@ -839,33 +849,79 @@ libSizes - 20 200  10 sequence of libsizes to test, x values in CCM curve
 Sample - 
 this is where you do bootstrap, subsets of data ex: 100, do 100 n number of random resamples
 
+#SURROGATE
+
+```{r}
+
+ag_df_CR <- na.omit(ag_df_CR)
+
+# Convert ag_df_CR to a time series object if necessary
+Surrogate_phy <- as.ts(ag_df_CR$phy)
+Surrogate_chl <- as.ts(ag_df_CR$chl)
+Surrogate_ph <- as.ts(ag_df_CR$ph)
+Surrogate_Celsius <- as.ts(ag_df_CR$Celsius)
+Surrogate_spcond <- as.ts(ag_df_CR$spcond)
+Surrogate_do <- as.ts(ag_df_CR$do)
+Surrogate_turb <- as.ts(ag_df_CR$turb)
+Surrogate_Salinity <- as.ts(ag_df_CR$Salinity)
+Surrogate_del_phy <- as.ts(ag_df_CR$Salinity)
+
+#Surrogate
+
+Surrogate_phy <- SurrogateData(Surrogate_phy, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_chl <- SurrogateData(Surrogate_chl, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_ph <- SurrogateData(Surrogate_ph, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_Celsius <- SurrogateData(Surrogate_Celsius, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_spcond <- SurrogateData(Surrogate_spcond, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_do <- SurrogateData(Surrogate_do, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_turb <- SurrogateData(Surrogate_turb, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_Salinity <- SurrogateData(Surrogate_Salinity, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_del_phy <- SurrogateData(Surrogate_del_phy, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+
+
+Surrogate <- bind_rows(
+  CR2015,
+  CR2016,
+  CR2017, 
+  CR2018,
+  CR2019,
+  CR2020,
+  CR2021,
+  CR2022,
+  CR2023
+)
+
+
+
+
+```
+
+ts <- the original time series
+method	<- which algorithm to use to generate surrogate data
+num_surr <- the number of null surrogates to generate
+T_period <- the period of seasonality for seasonal surrogates (ignored for other methods)
+alpha	<- additive noise factor: N(0,alpha)
+
+
+###CCM EPA BUOY
+```{r}
+ag_df_CR <- na.omit(ag_df_CR)
+```
+
 ##PH
 
 #CMAP
+
+
 ```{r}
+
 ag_df_CR <- na.omit(ag_df_CR)
 
-cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 400 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
 
-cmap.ph.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 400 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+#includeData = TRUE removed 
 
-
-# ag_df_CR %>% ggplot(aes(x=ph,y=phy)) + geom_point()
-cmap.ph.phy$LibMeans %>% 
-  ggplot(aes(x=LibSize)) +
-  geom_line(aes(y=`ph:phy`,color="ph:phy")) +
-  geom_line(aes(y=`phy:ph`,color="phy:ph")) +
-  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$phy)),lty=2)
-
-
-cmap.ph.phy$CCM1_PredictStat %>%
-  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
-  geom_jitter() + stat_summary(fun = median,geom="line")
-
-
-EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "ph",
-               target = "phy",lib="1 1174",pred="1 1174",
-               tau=-7)
+cmap.ph.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
 
 ```
 
@@ -877,7 +933,6 @@ ph.del.corr <- ph.del.corr[1, 3]
 
 ph.phy.corr <- cor(cmap.ph.phy)
 ph.phy.corr <- ph.phy.corr[1, 3]
-
 
 #ph.del
 plot(x = cmap.ph.del[,1], y = cmap.ph.del[,2], type = "l",
@@ -899,44 +954,31 @@ legend("topright", legend = c(colnames(cmap.ph.phy)[2:3], "Correlation"),
 
 
 ```{r}
+#PLOT POINTS 
+ ag_df_CR %>% ggplot(aes(x=ph,y=phy)) + geom_point()
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.ph.del2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 337 20", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE) 
+cmap.ph.phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 337 20", sample = 100, showPlot = TRUE, includeData = TRUE)
 
+ cmap.ph.phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`ph:phy`,color="ph:phy")) +
+  geom_line(aes(y=`phy:ph`,color="phy:ph")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$phy)),lty=2)
 
-```
+cmap.ph.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
 
-```{r}
-
-
-cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE, abline())
-
-```
-
-
-
-
-#using simplex 
-
-```{r}
-
-lib_ins <- c(1,992) # data up through end of 2022; this is the training set
-lib_oos <- c(993,1138) # leave this alone until we're nearly done with the project
-
-cmap <- Simplex(dataFrame = ag_df_CR, lib = lib_ins, pred = lib_ins, target = "del_phy", columns = "ph", Tp = 0, E = 4)
-
-head(cmap)
-plot(cmap)
-
-
-ag_df_CRPredict <- Simplex(dataFrame = ag_df_CR, pred = "1076 1223", target = "chl",
-columns = "chl", E = 4)
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", , sample = 10, showPlot = TRUE)
+EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "ph",
+               target = "phy",lib="1 1174",pred="1 1174",
+               tau=-7)
 
 ```
 
+Mean trendline + median Trendline
+https://www.r-bloggers.com/2023/11/navigating-quantile-regression-with-r-a-comprehensive-guide/
 
 
 ##Celsius
@@ -1170,11 +1212,6 @@ df_example %>% ggplot(aes(x=Date,y=sin_season)) + geom_line()
 
 
 ```
-
-pH of fresh sewage is more than 7 (average range is 7.5-9.5) and fresh sewage is alkaline in nature. pH of septic sewage is less than 7 (average range is 6.5-4.5) and septic sewage is acidic in nature.
-
-Source: "TestBook"
-
 
 
 https://rdrr.io/cran/rEDM/man/SurrogateData.html#google_vignette
