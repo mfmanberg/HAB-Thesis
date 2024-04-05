@@ -1,0 +1,2117 @@
+---
+title: "HAB_Spring2024"
+output: html_document
+date: "2024-04-03"
+---
+
+#CR BUOY
+
+
+```{r}
+ag_df_CR
+
+ag_df_CR$chl
+
+ag_df_CR$phy
+
+ag_df_CR$ph
+
+ag_df_CR$Celsius
+
+ag_df_CR$spcond
+
+ag_df_CR$do
+
+ag_df_CR$turb
+
+ag_df_CR$Salinity
+
+```
+
+
+###9:12
+
+```{r}
+
+morndf_CR
+
+morndf_CR$chl
+
+mornddf_CR$phy
+
+mornddf_CR$ph
+
+mornddf_CR$Celsius
+
+mornddf_CR$spcond
+
+mornddf_CR$do
+
+mornddf_CR$turb
+
+mornddf_CR$Salinity
+
+
+```
+
+###HOURLY
+```{r}
+
+df_CR
+
+df_CR$chl
+
+df_CR$phy
+
+df_CR$ph
+
+df_CR$Celsius
+
+df_CR$spcond
+
+df_CR$do
+
+df_CR$turb
+
+df_CR$Salinity
+
+
+```
+
+##LOGAN
+
+```{r}
+
+    ag_Logan$HourlyAltimeterSetting 
+
+    ag_Logan$HourlyDewPointTemperature 
+    
+    ag_Logan$HourlyDryBulbTemperature 
+    
+    ag_Logan$HourlyPrecipitation 
+    
+   ag_Logan$HourlyRelativeHumidity 
+   
+    ag_Logan$HourlyStationPressure 
+    
+    ag_Logan$HourlyVisibility
+    
+    ag_Logan$HourlyWetBulbTemperature 
+    
+    ag_Logan$HourlyWindDirection 
+    
+    ag_Logan$HourlyWindGustSpeed
+    
+    ag_Logan$HourlyWindSpeed 
+    
+  
+
+
+```
+
+
+
+##MWRA Non-CSO
+
+```{r}
+
+#ag_CR_secchi
+
+ag_CR_secchi$`Total Suspended Solids (mg/L)`
+
+#ag_CR_nutrients 
+
+ag_CR_nutrients$`Ammonium (uM)`
+ag_CR_nutrients$`Nitrate+nitrite (uM)`
+ag_CR_nutrients$`Phosphate (uM)`
+ag_CR_nutrients$`Total phosphorus (uM)`
+ag_CR_nutrients$`Phaeophytin (ug/L)`
+
+#ag_CR_bacteria
+
+ag_CR_bacteria$Enterococcus
+ag_CR_bacteria$E_coli
+ag_CR_bacteria$coliform
+
+
+```
+
+##CSO
+
+```{r}
+
+CAM017$MG
+
+```
+
+```{r}
+
+All.CR_bacteria
+
+All.CR_secchi
+
+All.CR_nutrients 
+
+```
+
+
+
+```{r}
+library(tidyverse)
+library(googlesheets4)
+library(oce)
+library(padr)
+library(rEDM)
+library(ggplot2)
+library(zoo)
+library(quantreg)
+
+```
+
+
+#Vignette
+
+```{r}
+vignette('rEDM-tutorial')
+
+```
+
+###LOAD DATA
+
+##CR BUOY
+
+```{r}
+
+#CR2023
+
+if (file.exists("CR2023.rds")) {
+  # If it's saved locally, load the data
+  CR2023 <- readRDS("CR2023.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1sMKGzW71qErP8DIrxWDvlgqN3o9MrprLjjAFGsOie3I/edit?usp=sharing')
+  saveRDS(CR2023, "CR2023.rds")
+}
+
+#CR2022
+
+if (file.exists("CR2022.rds")) {
+  # If it's saved locally, load the data
+  CR2022 <- readRDS("CR2022.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1F5l-1dWi7EFOaEKf9o3eUBi6BgQOrC1Rj_lVNRPrx5U/edit?usp=sharing', sheet = 2)
+  saveRDS(CR2022, "CR2022.rds")
+}
+
+#CR2021
+
+if (file.exists("CR2021.rds")) {
+  # If it's saved locally, load the data
+  CR2021 <- readRDS("CR2021.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1vaDoymaAQmNFKqIgo1LStI7GQSKDeIqLy7We85IA3Oo/edit?usp=sharing', sheet = 2)
+  saveRDS(CR2021, "CR2021.rds")
+}
+
+####FIX 2021
+
+#CR2020
+
+
+if (file.exists("CR2020.rds")) {
+  # If it's saved locally, load the data
+  CR2020 <- readRDS("CR2020.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1Qvt0PIK4wPFPKbkM98pSQp9TbPsu_a6frTWFKv3aNQ4/edit?usp=sharing', sheet = 2)
+  saveRDS(CR2020, "CR2020.rds")
+}
+
+
+#CR2019
+
+if (file.exists("CR2019.rds")) {
+  # If it's saved locally, load the data
+  CR2019 <- readRDS("CR2019.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1PGZCChA-8HU-cLvPSxqrxd89gLTletDYgogMGwv4Dg4/edit?usp=sharing')
+  saveRDS(CR2019, "CR2019.rds")
+}
+
+
+#CR2018
+
+
+if (file.exists("CR2018.rds")) {
+  # If it's saved locally, load the data
+  CR2018 <- readRDS("CR2018.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/1CO0DHuKb3C-hE9z-r5yR-SXwPnZWZg4vQDuEtRv2r7k/edit?usp=sharing', sheet = 2)
+  saveRDS(CR2018, "CR2018.rds")
+}
+
+
+#CR2017
+
+if (file.exists("CR2017.rds")) {
+  # If it's saved locally, load the data
+  CR2017 <- readRDS("CR2018.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/11SO-RxRhcc4qqn3gRt4n13JWClFoG--kISMoPAR2FRA/edit?usp=sharing', sheet = 2)
+  saveRDS(CR2017, "CR2017.rds")
+}
+
+#CR2016
+
+
+if (file.exists("CR2016.rds")) {
+  # If it's saved locally, load the data
+  CR2016 <- readRDS("CR2016.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1sMcEOIzxPTUZ93-pTJBE0lQ3SI8kKihLZRdpZ32_Lyw/edit?usp=sharing', sheet = 2)
+  saveRDS(CR2017, "CR2016.rds")
+}
+
+
+#CR2015
+
+if (file.exists("CR2015.rds")) {
+  # If it's saved locally, load the data
+  CR2015 <- readRDS("CR2015.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/1t5joquxku9OfQGDdsabp-GdR2sUw8hPDcwatC3SL90Q/edit?usp=sharing', sheet = 2)
+  saveRDS(CR2015, "CR2015.rds")
+}
+
+
+```
+
+#df_CR
+
+```{r}
+#bind rows
+df_CR <- bind_rows(
+  CR2015,
+  CR2016,
+  CR2017, 
+  CR2018,
+  CR2019,
+  CR2020,
+  CR2021,
+  CR2022,
+  CR2023
+)
+
+#combine data
+df_CR <- df_CR %>%
+  mutate(hour = pmin(hour(`time est`),hour(`time edt`),na.rm=T),
+         minute = pmin(minute(`time est`),minute(`time edt`),na.rm=T)) %>%
+  select(date,hour,minute,chl=`chlorophyll (rfu)`,phy=`phycocyanin (rfu)`, ph=`ph`, Celsius =`temp c`,  spcond = `spcond (ms/cm)`, do = `do (mg/l)`,turb = `turbidity (fnu)` )
+  
+  
+#%>% rename(`time est`=time)
+#Aggregate Values Daily
+df_CR$spcond = df_CR$spcond * 0.1 #mS to S/m
+
+df_CR$Salinity <- 
+
+  swSCTp(
+  df_CR$spcond,
+df_CR$Celsius,
+  pressure = rep(10.1325,NROW(df_CR)),
+  # "S/cm",
+"",
+  eos = getOption("oceEOS", default = "gsw")
+)
+
+if (file.exists("df_CR.rds")) {
+  # If it's saved locally, load the data
+  df_CR <- readRDS("df_CR.rds")
+} else {
+saveRDS(df_CR, "df_CR.rds")
+}
+
+
+```
+
+#ag_df_CR
+
+```{r}
+#ag_df_CR
+
+
+ag_df_CR <-df_CR %>%
+   group_by(date) %>%
+  summarise(chl=mean(chl, na.rm = TRUE), phy=mean(phy, na.rm = TRUE), ph=mean(ph, na.rm = TRUE), Celsius=mean(Celsius,na.rm = TRUE), spcond=mean(spcond,na.rm = TRUE), do=mean(do,na.rm = TRUE), turb=mean(turb,na.rm = TRUE), Salinity = mean(Salinity,na.rm = TRUE))
+
+ag_df_CR <- na.omit(ag_df_CR)
+
+
+if (file.exists("ag_df_CR.rds")) {
+  # If it's saved locally, load the data
+  ag_df_CR <- readRDS("ag_df_CR.rds")
+} else {
+  saveRDS(ag_df_CR, "ag_df_CR.rds")
+}
+
+```
+
+
+# 9-12 Values
+
+```{r}
+
+morndf_CR <- df_CR %>%
+  filter(hour %in% c(9, 10, 11))
+
+morndf_CR <-morndf_CR %>%
+   group_by(date) %>%
+  summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
+
+
+if (file.exists("morndf_CR.rds")) {
+  # If it's saved locally, load the data
+  morndf_CR <- readRDS("morndf_CR.rds")
+} else {
+  saveRDS(morndf_CR, "morndf_CR.rds")
+}
+
+
+```
+
+
+###LOGAN 
+```{r}
+
+Logan <- read_sheet('https://docs.google.com/spreadsheets/d/1h3mNXsGZxB4fhkZQGr2e8z6CxAQtumA5a208-GEYvBw/edit?usp=sharing')
+
+# Convert to POSIXct object
+Logan$DATE <- as.POSIXct(Logan$DATE, format = "%Y-%m-%dT%H:%M:%S")
+
+Logan2 <- Logan
+
+# Remove "s" suffixes from HourlyAltimeterSetting column
+Logan2$HourlyAltimeterSetting <- gsub("s$", "", Logan$HourlyAltimeterSetting)
+
+# Convert HourlyAltimeterSetting to numeric
+Logan$HourlyAltimeterSetting <- as.numeric(Logan$HourlyAltimeterSetting)
+
+
+
+# Convert columns to numeric (excluding DATE)
+numeric_cols <- c("HourlyAltimeterSetting", "HourlyDewPointTemperature", "HourlyDryBulbTemperature",
+                  "HourlyPrecipitation", "HourlyPressureChange", "HourlyPressureTendency",
+                  "HourlyRelativeHumidity", "HourlySeaLevelPressure", "HourlyStationPressure",
+                  "HourlyVisibility", "HourlyWetBulbTemperature", "HourlyWindDirection",
+                  "HourlyWindGustSpeed", "HourlyWindSpeed")
+
+Logan <- Logan %>%
+  mutate(across(all_of(numeric_cols), as.numeric))
+
+
+Logan$HourlySeaLevelPressure <- gsub("s$", "", Logan$HourlySeaLevelPressure)
+
+ag_Logan <- Logan %>%
+  group_by(DATE) %>%
+  summarise(
+    HourlyAltimeterSetting = mean(HourlyAltimeterSetting, na.rm = TRUE),
+    HourlyDewPointTemperature = mean(HourlyDewPointTemperature, na.rm = TRUE),
+    HourlyDryBulbTemperature = mean(HourlyDryBulbTemperature, na.rm = TRUE), 
+    HourlyPrecipitation = sum(HourlyPrecipitation, na.rm = TRUE),
+   # HourlyPressureChange = mean(HourlyPressureChange, na.rm = TRUE), SKIP
+   # HourlyPressureTendency = mean(HourlyPressureTendency, na.rm = TRUE), SKIP
+    HourlyRelativeHumidity = mean(HourlyRelativeHumidity, na.rm = TRUE), 
+   # HourlySeaLevelPressure = mean(HourlySeaLevelPressure, na.rm = TRUE), SKIP
+    HourlyStationPressure = mean(HourlyStationPressure, na.rm = TRUE),
+    HourlyVisibility = mean(HourlyVisibility, na.rm = TRUE),
+    HourlyWetBulbTemperature = mean(HourlyWetBulbTemperature, na.rm = TRUE), 
+    HourlyWindDirection = mean(HourlyWindDirection, na.rm = TRUE), 
+    HourlyWindGustSpeed = mean(HourlyWindGustSpeed, na.rm = TRUE), 
+    HourlyWindSpeed = mean(HourlyWindSpeed, na.rm = TRUE)
+    
+    )
+
+ag_Logan <- na.omit(ag_Logan)
+
+if (file.exists("ag_Logan.rds")) {
+  # If it's saved locally, load the data
+  ag_Logan <- readRDS("ag_Logan.rds")
+} else {
+  saveRDS(ag_Logan, "ag_Logan.rds")
+}
+
+
+```
+
+### MWRA Non-CSO
+
+```{r}
+#READ DATA IN
+
+#CR_bacteria
+
+if (file.exists("CR_bacteria.rds")) {
+  # If it's saved locally, load the data
+  CR_bacteria <- readRDS("CR_bacteria.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR_bacteria <- read_sheet('https://docs.google.com/spreadsheets/d/1V1DJc4er2gctuRN2bv3u3Db0bGxz566ec8j6xmXFZ70/edit?usp=sharing', range = 'cr_bacteria')  
+saveRDS(CR_bacteria, "CR_bacteria.rds")
+}
+
+#CR_secchi
+
+
+if (file.exists("CR_secchi.rds")) {
+  # If it's saved locally, load the data
+ CR_secchi <- readRDS("CR_secchi.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR_secchi <- read_sheet('https://docs.google.com/spreadsheets/d/1fW4_60i-SYkdTPlFQQdN0b5nlZirc2uQyjDN_dvWA18/edit?usp=sharing', range = 'cr_secchi')
+saveRDS(CR_secchi, "CR_secchi.rds")
+}
+
+
+#CR_physical 
+
+if (file.exists("CR_physical.rds")) {
+  # If it's saved locally, load the data
+ CR_physical <- readRDS("CR_physical.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR_physical <- read_sheet('https://docs.google.com/spreadsheets/d/1P5kzPHFABPTKffxM2yQBTIQWq9NAmnGd3PF6kOsSFNU/edit?usp=sharing', range = 'cr_physical')
+saveRDS(CR_physical, "CR_physical")
+}
+
+#CR_nutrients
+
+if (file.exists("CR_nutrients.rds")) {
+  # If it's saved locally, load the data
+ CR_nutrients <- readRDS("CR_nutrients.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR_nutrients <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
+saveRDS(CR_physical, "CR_nutrients")
+}
+
+
+
+```
+
+```{r}
+#NEW NAMES 
+## CRBacteria 
+Bacteria_new_names <- c(
+  "Project_ID",
+  "Region",
+  "Subregion",
+  "DEP_Segment",
+  "Station ID",
+  "Date",
+  "Depth_category",
+  "Sample_depth",
+  "Enterococcus",
+  "Enterococcus_condition",
+  "E_coli",
+  "E_coli_condition",
+  "coliform",
+  "coliform_condition",
+  "Rainfall_1d",
+  "Rainfall_2d",
+  "Rainfall_3d"
+)
+
+#CRSECCHI
+Secchi_new_names <- c(
+  "Project ID",
+"Region",
+"Subregion",
+"DEP Segment",
+"Station ID",
+"Surface or Bottom",
+"Depth to bottom (m)",
+"Sample depth for TSS (m)",
+"Date",
+"Total Suspended Solids (mg/L)",
+"Total Suspended Solids '<' or '>'",
+"Secchi disk depth (m)"
+)
+
+
+#CRPHYSICAL
+Physical_new_names <- c(
+"Project ID",
+"Region",
+"Subregion",
+"DEP segment",
+"Station ID",
+"Surface or Bottom",
+"Date",
+"Depth of measurement (m)",
+"Temperature (C)",
+"Salinity (PSU)",
+"Specific Conductance (mS/cm)",
+"Dissolved Oxygen (mg/L)",
+"DO Pct Saturation (%)",
+"pH",
+"Turbidity (NTU)")
+
+
+
+#CRNUTRIENTS
+Nutrients_new_names <- c(
+
+"Project ID",
+"Region",
+"Subregion",
+"DEP segment",
+"Station ID",
+"Date",
+"Surface or Bottom",
+"Sample depth (m)",
+"Ammonium (uM)",
+"Ammonium '<' or '>'",
+"Nitrate+nitrite (uM)",
+"Nitrate+nitrite  '<' or '>'",
+"Total dissolved N (uM)",
+"Total dissolved N  '<' or '>'",
+"Particulate nitrogen (uM)",
+"Particulate nitrogen  '<' or '>'",
+"Total Kjeldahl Nitrogen (uM)",
+"TKN '<' or '>'",
+"Phosphate (uM)",
+"Phosphate '<' or '>'",
+"Total dissolved P (uM)",
+"Total dissolved P '<' or '>'",
+"Particulate P (uM)",
+"Particulate P '<' or '>'",
+"Total phosphorus (uM)",
+"Total phosphorus '<' or '>'",
+"Particulate carbon (uM)",
+"Particulate carbon     '<' or '>'",
+"Chlorophyll a (ug/L)",
+"Chlorophyll '<' or '>'",
+"Phaeophytin (ug/L)",
+"Phaeophytin '<' or '>'"
+)
+
+#Initial Data Wrangle 
+
+#CRBACTERIA
+#colnames(CR_bacteria) <- as.character(CR_bacteria[5,]) #set header
+#CR_bacteria <- CR_bacteria[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+
+CR_bacteria <- CR_bacteria %>% 
+  set_names(Bacteria_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
+
+
+#CR SECCHI
+
+#colnames(CR_secchi) <- as.character(CR_secchi[5,]) #set header
+#CR_secchi <- CR_secchi[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+
+CR_secchi <- CR_secchi %>% 
+  set_names(Secchi_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
+
+#CRPHYSICAL
+
+#colnames(CR_physical) <- as.character(CR_physical[5,]) #set header
+#CR_physical <- CR_physical[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+
+CR_physical <- CR_physical %>% 
+  set_names(Physical_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
+
+#CRNUTRIENTS
+#colnames(CR_nutrients) <- as.character(CR_nutrients[5,]) #set header
+#CR_nutrients <- CR_nutrients[-c(1:5), ] #Remove 1st 5 Rows
+#rename columns
+
+CR_nutrients <- CR_nutrients %>% 
+  set_names(Nutrients_new_names) %>%
+  mutate(Date = map_vec(Date,as.Date))
+
+
+```
+
+```{r}
+
+#SITE SELECTION
+
+#CR_bacteria
+CR_bacteria_011 <- subset(CR_bacteria, CR_bacteria$`Station ID` == "011")
+
+
+#CR_nutrients
+
+CR_nutrients_166 <- subset(CR_nutrients, CR_nutrients$`Station ID` == "166")
+
+#CR_physical
+CR_physical_011 <- subset(CR_physical, CR_physical$`Station ID` == "011")
+
+
+#CR_secchi
+
+CR_secchi_011 <- subset(CR_secchi, CR_secchi$`Station ID` == "011")
+
+#AGGREGATE DAILY
+
+#CR_bacteria
+
+ag_CR_bacteria <-CR_bacteria_011 %>%
+   group_by(Date) %>%
+  summarise(Enterococcus = mean(Enterococcus, na.rm = TRUE), E_coli = mean(E_coli, na.rm = TRUE),)
+ag_CR_bacteria <- na.omit(ag_CR_bacteria)
+
+
+#CR_nutrients
+
+ag_CR_nutrients <- CR_nutrients_166 %>%
+   group_by(Date) %>%
+  summarise(`Ammonium (uM)` = mean(`Ammonium (uM)`, na.rm = TRUE), `Nitrate+nitrite (uM)` = mean(`Nitrate+nitrite (uM)`, na.rm = TRUE), `Phosphate (uM)` = mean(`Phosphate (uM)`, na.rm = TRUE), `Total phosphorus (uM)` = mean(`Total phosphorus (uM)`,na.rm = TRUE), `Chlorophyll a (ug/L)` = mean(`Chlorophyll a (ug/L)`,na.rm = TRUE), `Phaeophytin (ug/L)` = mean(`Phaeophytin (ug/L)`,na.rm = TRUE)) 
+
+ag_CR_nutrients <- na.omit(ag_CR_nutrients)
+
+#CR_physical
+
+ag_CR_physical <- CR_physical_011 %>%
+  group_by(Date) %>%
+  summarise(`Temperature (C)` = mean(`Temperature (C)`, na.rm = TRUE),
+            `Salinity (PSU)` = mean(`Salinity (PSU)`, na.rm = TRUE),
+            `Specific Conductance (mS/cm)` = mean(`Specific Conductance (mS/cm)`, na.rm = TRUE),
+            `Dissolved Oxygen (mg/L)` = mean(`Dissolved Oxygen (mg/L)`, na.rm = TRUE),
+            `DO Pct Saturation (%)` = mean(`DO Pct Saturation (%)`, na.rm = TRUE),
+            `pH` = mean(`pH`, na.rm = TRUE),
+            `Turbidity (NTU)` = mean(`Turbidity (NTU)`, na.rm = TRUE))
+
+ag_CR_physical <- na.omit(ag_CR_physical)
+
+
+#CR_secchi
+
+ag_CR_secchi <-CR_secchi_011 %>%
+   group_by(Date) %>%
+  summarise(`Total Suspended Solids (mg/L)`= mean(`Total Suspended Solids (mg/L)`, na.rm = TRUE ), `Secchi disk depth (m)` = mean(`Secchi disk depth (m)`, na.rm = TRUE))
+
+ag_CR_secchi <- na.omit(ag_CR_secchi)
+
+```
+
+###MWRA CSO 
+
+```{r}
+
+#MWRACSOData2016
+
+if (file.exists("MWRACSOData2016.rds")) {
+  # If it's saved locally, load the data
+MWRACSOData2016 <- readRDS("MWRACSOData2016.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+MWRACSOData2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1BF5lMyYrnILoS-rySwTGILiaqYfxA5-Pz5P2xUmOIq8/edit?usp=sharing')
+saveRDS(MWRACSOData2016, "MWRACSOData2016")
+}
+
+#MWRACSOData
+
+if (file.exists("MWRACSOData.rds")) {
+  # If it's saved locally, load the data
+MWRACSOData <- readRDS("MWRACSOData.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+MWRACSOData <- read_sheet('https://docs.google.com/spreadsheets/d/1PRu1yvIuxOnMyazAVkXGv7dkOKUClNxl7CrvrctPREU/edit?usp=sharing')
+saveRDS(MWRACSOData, "MWRACSOData")
+}
+
+```
+
+```{r}
+
+
+#Extract Date
+MWRACSOData$Date <- as.Date(MWRACSOData$`Start Time`, format = "%m/%d/%Y")
+
+
+#Remove Excess Charecters
+
+#Remove "Treated" in Volume Column
+MWRACSOData$`Volume (MG)` <- gsub("Treated","",as.character(MWRACSOData$`Volume (MG)`))
+
+#Remove "min" in Minutes Column
+
+MWRACSOData$Minutes <- gsub("min","",as.character(MWRACSOData$Minutes))
+
+#Remove Rows w/ "*"
+MWRACSOData <- MWRACSOData %>% filter(!grepl("\\*", MWRACSOData$Duration))
+
+#Replace NA w/ 0
+MWRACSOData$Minutes[is.na(MWRACSOData$Minutes)] <- 0
+
+#Make Duration Column
+MWRACSOData$Minutes <- as.numeric(MWRACSOData$Minutes)
+MWRACSOData$Hours <- as.numeric(MWRACSOData$Hours)
+
+MWRACSOData$CombinedMinutes <- MWRACSOData$Minutes + (MWRACSOData$Hours * 60)
+
+#Remove Columns 
+
+MWRACSOData <- MWRACSOData[-c(4:10)]
+
+#Check Dates
+
+unique_dates <- unique(MWRACSOData$Date)
+
+
+# Sanity Check: CombinedMinutes to numeric and Date to Date format
+MWRACSOData <- MWRACSOData %>%
+  mutate(CombinedMinutes = as.numeric(CombinedMinutes),
+         Date = as.Date(Date))
+
+MWRACSOData <- MWRACSOData %>%
+  mutate(`Volume (MG)` = as.numeric(`Volume (MG)`),
+         Date = as.Date(Date))
+
+# Group by Date and calculate the sum of CombinedMinutes
+
+
+
+MWRACSOData2 <- 
+aggregate(MWRACSOData$CombinedMinutes, by=list(MWRACSOData$Date, MWRACSOData$`Outfall Location`), FUN = sum) 
+
+
+MWRACSOData3 <- 
+aggregate(MWRACSOData$`Volume (MG)`, by=list(MWRACSOData$Date, MWRACSOData$`Outfall Location`), FUN = sum) 
+
+MWRACSOData20162 <- 
+aggregate(MWRACSOData2016$`Duration (Min)`, by=list(MWRACSOData2016$Date, MWRACSOData2016$CSOName), FUN = sum) 
+
+MWRACSOData20163 <- 
+aggregate(MWRACSOData2016$`Volume (MG)`, by=list(MWRACSOData2016$Date, MWRACSOData2016$CSOName), FUN = sum) 
+
+
+# Rename a column using colnames
+
+colnames(MWRACSOData2)[1:3] <- c("Date","Outfall Location", "Total Minutes")
+
+colnames(MWRACSOData20162)[1:3] <- c("Date","Outfall Location", "Total Minutes")
+
+colnames(MWRACSOData3)[1:3] <- c("Date","Outfall Location", "Volume")
+
+colnames(MWRACSOData20163)[1:3] <- c("Date","Outfall Location", "Volume")
+
+#Set Columns to Be The Same
+
+MWRACSOData <- MWRACSOData[-c(1,4,5,7)]
+
+MWRACSOData2016 <- MWRACSOData2016[-c(3:8)]
+
+
+
+
+#Make New Names
+
+MWRA_new_names <- c(
+  "CSO_ID",
+  "Outfall Location",
+  "Date"
+)
+
+MWRA2016_new_names <- c(
+  "CSO_ID",
+  "Outfall Location",
+  "Date"
+)
+
+MWRACSOData <- MWRACSOData %>% 
+  set_names(MWRA_new_names)
+  
+MWRACSOData2016 <- MWRACSOData2016 %>% 
+  set_names(MWRA2016_new_names)
+
+#Fix Date Format
+
+MWRACSOData$Date <- format(as.Date(MWRACSOData$Date, format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+#Merge Columns 
+
+MergedMWRACSO <- rbind(MWRACSOData,MWRACSOData2016)
+
+#Order Date
+
+MergedMWRACSO[order(as.Date(MergedMWRACSO$Date, format="%m/%d/%Y")),]
+
+#Fix Date Formats of Future Joins
+MWRACSOData2$Date <- format(as.Date(MWRACSOData2$Date, format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+
+MWRACSOData3$Date <- format(as.Date(MWRACSOData3$Date, format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+# Perform the joins
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData2[, c("Date", "Outfall Location", "Total Minutes")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData20162[, c("Date", "Outfall Location", "Total Minutes")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+# Combine the columns using coalesce
+MergedMWRACSO <- MergedMWRACSO %>%
+  mutate(TotalMinutes_combined = coalesce(`Total Minutes.x`, `Total Minutes.y`))
+
+
+# Drop the individual columns if you no longer need them
+MergedMWRACSO <- MergedMWRACSO %>%
+  select(-`Total Minutes.x`, -`Total Minutes.y`)
+
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData3[, c("Date", "Outfall Location", "Volume")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+MergedMWRACSO <- merge(MergedMWRACSO, MWRACSOData20163[, c("Date", "Outfall Location", "Volume")], 
+                       by.x = c("Date", "Outfall Location"), 
+                       by.y = c("Date", "Outfall Location"), all.x = TRUE)
+
+MergedMWRACSO <- MergedMWRACSO %>%
+  mutate(Volume_combined = coalesce(`Volume.x`, `Volume.y`))
+
+
+# Drop the individual columns if you no longer need them
+MergedMWRACSO <- MergedMWRACSO %>%
+  select(-`Volume.x`, -`Volume.y`)
+
+
+```
+
+```{r}
+
+MWRACSOCoords <- read_sheet('https://docs.google.com/spreadsheets/d/1O9RONCW0lGEsPrt-srZU8M4xeNxDM3hJmkA1IWL2mW4/edit?usp=sharing')
+
+MWRACSOCoords2 <- read_sheet('https://docs.google.com/spreadsheets/d/18PK0CcX6Ye5RZJtVUI8mmiaRwLIpRNIzGCwOupSqf-k/edit?usp=sharing')
+
+
+```
+
+```{r}
+
+MWRACSOFinal <-  
+left_join(MergedMWRACSO , MWRACSOCoords ,  by = c("CSO_ID" = "OUTFALL"  ))
+
+#MWRACSOCoords2$OUTFALL_ID <- as.character(MWRACSOCoords2$OUTFALL_ID )
+
+#MWRACSOFinal <-  
+#left_join(MergedMWRACSO , MWRACSOCoords2 ,  by = c("CSO_ID" = "OUTFALL_ID"  ))
+```
+
+```{r}
+
+if (file.exists("MWRACSOFinal.rds")) {
+  # If it's saved locally, load the data
+MWRACSOFinal <- readRDS("MWRACSOFinal.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+MWRACSOFinal <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
+saveRDS(MWRACSOFinal, "MWRACSOFinal")
+}
+
+```
+
+```{r}
+# List all objects in the environment
+all_objects <- ls()
+
+# Identify objects to keep
+objects_to_keep <- c("MWRACSOFinal")
+
+# Identify objects to remove
+objects_to_remove <- setdiff(all_objects, objects_to_keep)
+
+# Remove unwanted objects
+rm(list = objects_to_remove)
+
+rm(all_objects)
+rm(objects_to_keep)
+rm(objects_to_remove)
+
+```
+
+
+###CAMCSO
+
+```{r}
+
+#CAM2015CSO
+
+if (file.exists("CAM2015CSO.rds")) {
+  # If it's saved locally, load the data
+CAM2015CSO <- readRDS("CAM2015CSO.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CAM2015CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2015CAMCSO')
+saveRDS(CAM2015CSO, "CAM2015CSO")
+}
+
+
+#CAM2016CSO
+
+if (file.exists("CAM2016CSO.rds")) {
+  # If it's saved locally, load the data
+CAM2016CSO <- readRDS("CAM2016CSO.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CAM2016CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2016CAMCSO')
+saveRDS(CAM2016CSO , "CAM2016CSO")
+}
+
+CAM2016CSO <- subset(CAM2016CSO, select = c("Date", "CAM017* (MG)"))
+
+#CAM2017CSO
+
+if (file.exists("CAM2017CSO.rds")) {
+  # If it's saved locally, load the data
+CAM2017CSO <- readRDS("CAM201C7SO.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CAM2017CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2017CAMCSO')
+saveRDS(CAM2017CSO , "CAM2017CSO")
+}
+
+CAM2017CSO <- subset(CAM2017CSO, select = c("Date", "CAM017* (MG)"))
+
+
+#CAM2018CSO
+
+if (file.exists("CAM2018CSO.rds")) {
+  # If it's saved locally, load the data
+CAM2018CSO <- readRDS("CAM201C7SO.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CAM2018CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2018CAMCSO')
+saveRDS(CAM2018CSO , "CAM2018CSO")
+}
+
+
+
+CAM2018CSO <- subset(CAM2018CSO, select = c("Date", "CAM017* (MG)"))
+
+#CAM2019CSO
+
+if (file.exists("CAM2019CSO.rds")) {
+  # If it's saved locally, load the data
+CAM2019CSO <- readRDS("CAM201C7SO.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CAM2019CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2019CAMCSO')
+saveRDS(CAM2019CSO , "CAM2019CSO")
+}
+
+CAM2019CSO <- subset(CAM2019CSO, select = c("Date", "CAM017* (MG)"))
+
+
+#CAM2020CSO
+
+if (file.exists("CAM2020CSO.rds")) {
+  # If it's saved locally, load the data
+CAM2020CSO <- readRDS("CAM201C7SO.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CAM2020CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2020CAMCSO')
+saveRDS(CAM2020CSO , "CAM2020CSO")
+}
+
+CAM2020CSO <- subset(CAM2020CSO, select = c("Date", "CAM017* (MG)"))
+
+
+
+#CAM2021CSO
+
+if (file.exists("CAM2021CSO.rds")) {
+  # If it's saved locally, load the data
+CAM2021CSO <- readRDS("CAM201C7SO.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CAM2021CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2021CAMCSO')
+saveRDS(CAM2021CSO , "CAM2021CSO")
+}
+
+CAM2021CSO <- subset(CAM2021CSO, select = c("Date", "CAM017* (MG)"))
+
+#CAM2022CSO
+
+if (file.exists("CAM2022CSO.rds")) {
+  # If it's saved locally, load the data
+CAM2022CSO <- readRDS("CAM201C7SO.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CAM2022CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2022CAMCSO')
+saveRDS(CAM2022CSO , "CAM2022CSO")
+}
+
+CAM2022CSO <- subset(CAM2022CSO, select = c("Date", "CAM017* (MG)"))
+
+
+```
+
+```{r}
+# Combine all values into a single vector and sort them
+
+library(dplyr)
+
+# Ensure column names are consistent across all data frames
+colnames(CAM2015CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2016CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2017CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2018CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2019CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2020CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2021CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2022CSO) <- c("Date", "CAM017* (MG)")
+
+CAM2015CSO$`CAM017* (MG)` <- as.numeric(CAM2015CSO$`CAM017* (MG)`)
+CAM2016CSO$`CAM017* (MG)` <- as.numeric(CAM2016CSO$`CAM017* (MG)`)
+CAM2017CSO$`CAM017* (MG)` <- as.numeric(CAM2017CSO$`CAM017* (MG)`)
+CAM2018CSO$`CAM017* (MG)` <- as.numeric(CAM2018CSO$`CAM017* (MG)`)
+CAM2019CSO$`CAM017* (MG)` <- as.numeric(CAM2019CSO$`CAM017* (MG)`)
+CAM2020CSO$`CAM017* (MG)` <- as.numeric(CAM2020CSO$`CAM017* (MG)`)
+CAM2021CSO$`CAM017* (MG)` <- as.numeric(CAM2021CSO$`CAM017* (MG)`)
+CAM2022CSO$`CAM017* (MG)` <- as.numeric(CAM2022CSO$`CAM017* (MG)`)
+
+
+# Make sure that the "CAM017* (MG)" column is of type double
+
+
+CAM017 <- bind_rows(
+ CAM2016CSO,
+  CAM2017CSO, 
+  CAM2018CSO,
+  CAM2019CSO,
+  CAM2020CSO,
+  CAM2021CSO,
+  CAM2022CSO,
+)
+
+
+CAM017 <- CAM017 %>% rename(MG = `CAM017* (MG)`)
+
+CAM017_discharges <- subset(CAM017, MG != 0)
+
+
+
+```
+
+### ALL CSOs
+
+```{r}
+
+ag_df_CR$Date <- ag_df_CR$date
+
+ag_df_CR <- ag_df_CR[,-c(1) ]
+
+#rm(CR2023, CR2022, CR2020, CR2021, CR2020, CR2019, CR2018, CR2017, CR2016, CR2015, df_CR)
+
+ag_df_CR2 <- ag_df_CR
+
+
+#Fix Date Formats of Future Joins
+MWRACSOFinal$Date <- format(as.Date(MWRACSOFinal$Date, format=
+                           "%m-%d-%Y"         ), "%m-%d-%Y")
+
+
+ag_df_CR2$Date <- format(as.Date(ag_df_CR2$Date , format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+
+#join
+
+All <- merge(MWRACSOFinal, ag_df_CR2, by = "Date", all = TRUE)
+
+# Assuming your date column is named "Date"
+All$Date <- as.Date(All$Date, format="%m-%d-%Y")
+
+# Order the data frame by Year, Month, and Day
+All <- All[order(year(All$Date), month(All$Date), day(All$Date)), ]
+
+```
+
+Join CAM + CSO
+
+```{r}
+All <- merge(All, CAM017, by = "Date", all = TRUE)
+All <- All %>%
+  rename(CAM017MG = MG)
+```
+
+###CSO OCCURRANCES
+
+```{r}
+
+# Assuming your data frame is named MWRACSOFinal and the column with CSO IDs is named CSO_ID
+cso_counts <- as.data.frame(table(MWRACSOFinal$CSO_ID))
+
+#011
+
+```
+
+
+#COMBINE ALL DATA
+
+##MWRA X EPA
+
+```{r}
+
+
+#All.CR_bacteria
+ag_CR_bacteria <- ag_CR_bacteria %>% pad()
+All.CR_bacteria <- left_join(ag_CR_bacteria, ag_df_CR,  by = c("Date" = "date"  ))
+                            
+
+#All.CR_secchi
+
+ag_CR_secchi <- ag_CR_secchi %>% pad()
+All.CR_secchi <- left_join(ag_CR_secchi, ag_df_CR,  by = c("Date" = "date"  ))
+
+#All.CR.nutrients
+
+ag_CR_nutrients <- ag_CR_nutrients %>% pad()
+All.CR_nutrients <- left_join(ag_CR_nutrients, ag_df_CR,  by = c("Date" = "date"  ))
+
+
+```
+
+
+#LOGAN X EPA
+
+
+```{r}
+
+#TO BE FIXED 
+
+#All.CR_bacteria
+ag_Logan <- ag_Logan %>% pad()
+All.ag_Logan <- left_join(ag_Logan, ag_df_CR,  by = c("Date" = "date"  ))
+                            
+
+
+
+```
+
+
+
+
+
+#PLOT 2021 DRIVERS
+
+####Visualize Salinity 
+
+```{r}
+#Visualize Salinity 2021 
+
+df_CR <- df_CR %>% pad()
+
+df_CR %>%
+  mutate(date = as.Date(date)) %>%
+  group_by(date) %>%
+  filter(date >= as.Date("2021-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x = date)) + 
+  geom_path(aes(y = Salinity, color = "Salinity")) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  ggtitle("Salinity 2021") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x = "Month", y = "Salinity (ppm)")
+
+#Visualize Chl 2021 
+
+df_CR %>%
+  mutate(date = as.Date(date)) %>%
+  group_by(date) %>%
+  filter(date >= as.Date("2021-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x = date)) + 
+  geom_path(aes(y = chl, color = "chl")) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  ggtitle("Chlorophyll 2021") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x = "Month", y = "Chlorophyll (RFU)")
+  
+
+#Visualize Phy 2021 
+
+df_CR %>%
+  mutate(date = as.Date(date)) %>%
+  group_by(date) %>%
+  filter(date >= as.Date("2021-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x = date)) + 
+  geom_path(aes(y = chl, color = "phy")) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  ggtitle("Phycocanin 2021") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x = "Month", y = "Phycocanin (RFU)")
+
+
+df_CR %>% group_by(date,hour) %>%
+    mutate(date = as.Date(date)) %>%
+  group_by(date) %>%
+  filter(date >= as.Date("2021-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="chl")) + 
+  geom_path(aes(y=phy,color="phy")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle(" < 2021 Chlorophyll V. Phycocanin ") + 
+    labs(x = "Dates", y = "RFU")
+
+
+
+```
+
+### Plot All EPA Buoy Vars All Time
+
+```{r}
+df_CR %>%
+  group_by(date, hour) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity"), mean), .groups = "keep") %>%
+  mutate(date = date + hours(hour)) %>%
+  ggplot(aes(x = date)) +
+  geom_path(aes(y = chl, color = "Chlorophyll (RFU)")) +
+  geom_path(aes(y = phy, color = "Phycocanin (RFU)")) +
+  geom_path(aes(y = ph, color = "pH")) +
+  geom_path(aes(y = Celsius, color = "Temperature (Celsius)")) +
+  geom_path(aes(y = spcond, color = "Specific Conductance Ratio (mS/cm)")) +
+  geom_path(aes(y = do, color = "Dissolved Oxygen (mg/L)")) +
+  geom_path(aes(y = turb, color = "Turbidity (FNU)")) +
+  geom_path(aes(y = Salinity, color = "Salinity (ppm)")) +
+  scale_color_manual(
+    values = c("Chlorophyll (RFU)" = "green",
+               "Phycocanin (RFU)" = "orange",
+               "pH" = "brown",
+               "Temperature (Celsius)" = "red",
+               "Specific Conductance Ratio (mS/cm)" = "pink",
+               "Dissolved Oxygen (mg/L)" = "yellow",
+               "Turbidity (FNU)" = "purple",
+               "Salinity (ppm)" = "blue"),
+    name = "Color"
+  ) + 
+      labs(x = "Dates", y = "Units") +
+theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("All EPA Buoy Vars")
+```
+
+
+####CR BUOY
+
+
+```{r}
+ag_df_CR
+
+ag_df_CR$chl
+
+ag_df_CR$phy
+
+ag_df_CR$ph
+
+ag_df_CR$Celsius
+
+ag_df_CR$spcond
+
+ag_df_CR$do
+
+ag_df_CR$turb
+
+ag_df_CR$Salinity
+
+```
+
+
+###9:12
+
+```{r}
+
+morndf_CR
+
+morndf_CR$chl
+
+mornddf_CR$phy
+
+mornddf_CR$ph
+
+mornddf_CR$Celsius
+
+mornddf_CR$spcond
+
+mornddf_CR$do
+
+mornddf_CR$turb
+
+mornddf_CR$Salinity
+
+
+```
+
+###HOURLY
+```{r}
+
+df_CR
+
+
+#CHL
+acf_chl_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity",),mean),.groups = "keep") %>%
+  pull(chl)
+
+#PHY
+acf_phy_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity",),mean),.groups = "keep") %>%
+  pull(phy)
+
+#ph
+acf_ph_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity",),mean),.groups = "keep") %>%
+  pull(ph)
+
+#Celsius
+acf_Celsius_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity",),mean),.groups = "keep") %>%
+  pull(Celsius)
+
+#spcond
+acf_spcond_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity",),mean),.groups = "keep") %>%
+  pull(spcond)
+
+#spcond
+acf_do_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity",),mean),.groups = "keep") %>%
+  pull(do)
+
+#turb
+acf_turb_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity",),mean),.groups = "keep") %>%
+  pull(turb)
+
+#Salinity 
+acf_Salinity_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity",),mean),.groups = "keep") %>%
+  pull(Salinity)
+
+
+#DO LEGENDS
+
+
+length(ts_chl_2021)
+acf(ts_chl_2021,lag.max = 24*30, main = "Cholorophyll Hourly Non-Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 24*30, main = "Phycocanin Hourly Non-Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+acf(ts_chl_2021,lag.max = 30, main = "Cholorophyll Daily Non-Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 30, main = "Phycocanin Daily Non-Aggregated ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+
+## you can check an individual value as follows
+cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
+
+
+
+#df_CR$chl
+
+#df_CR$phy
+
+#df_CR$ph
+
+#df_CR$Celsius
+
+#df_CR$spcond
+
+#df_CR$do
+
+#df_CR$turb
+
+#df_CR$Salinity
+
+
+```
+
+##LOGAN
+
+```{r}
+
+
+#ag_Logan$HourlyAltimeterSetting 
+
+
+acf_ag_Logan$HourlyAltimeterSetting <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("    ag_Logan$HourlyAltimeterSetting ",
+"HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyAltimeterSetting)
+
+
+     #acf_ag_Logan$HourlyDewPointTemperature 
+     
+     acf_ag_Logan$HourlyDewPointTemperature <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyDewPointTemperature)
+    
+     #acf_ag_Logan$HourlyDryBulbTemperature 
+     
+      acf_ag_Logan$HourlyDryBulbTemperature  <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyDryBulbTemperature )
+    
+     #acf_ag_Logan$HourlyPrecipitation 
+  
+   acf_ag_Logan$HourlyPrecipitation  <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyPrecipitation)
+    
+    #acf_ag_Logan$HourlyRelativeHumidity 
+  
+   acf_ag_Logan$HourlyRelativeHumidity <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyRelativeHumidity )
+   
+     #acf_ag_Logan$HourlyStationPressure 
+  
+   acf_ag_Logan$HourlyStationPressure  <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyStationPressure)
+    
+     #acf_ag_Logan$HourlyVisibility
+  
+   acf_ag_Logan$HourlyVisibility <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyVisibility)
+    
+    #acf_ag_Logan$HourlyWetBulbTemperature 
+  
+   acf_ag_LoganHourlyWetBulbTemperature <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyWetBulbTemperature )
+    
+     #acf_ag_Logan$HourlyWindDirection 
+  
+   acf_ag_Logan$HourlyWindDirection  <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyWindDirection )
+    
+     #acf_ag_Logan$HourlyWindGustSpeed
+  
+   acf_ag_Logan$HourlyWindGustSpeed <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyWindGustSpeed)
+    
+     #acf_ag_Logan$HourlyWindSpeed 
+  
+   acf_ag_Logan$HourlyWindSpeed <- ag_Logan %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(HourlyWindSpeed)
+    
+  
+
+
+```
+
+##MWRA Non-CSO
+
+```{r}
+
+#acf_ag_CR_secchi$`Total Suspended Solids (mg/L)`
+ 
+   acf_ag_CR_secchi$`Total Suspended Solids (mg/L)` <- ag_CR_secchi %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(`Total Suspended Solids (mg/L)`)
+
+#acf_ag_CR_nutrients$`Ammonium (uM)`
+ 
+   acf_ag_CR_nutrients$`Ammonium (uM)` <- ag_CR_nutrients %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(`Ammonium (uM)`)
+  
+  #acf_ag_CR_nutrients$`Nitrate+nitrite (uM)`
+ 
+   acf_ag_CR_nutrients$`Nitrate+nitrite (uM)` <-ag_CR_nutrients %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(`Nitrate+nitrite (uM)`)
+  
+  #acf_ag_CR_nutrients$`Phosphate (uM)`
+ 
+   acf_ag_CR_nutrients$`Phosphate (uM)` <- ag_CR_nutrients %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(`Phosphate (uM)`)
+  
+  #acf_ag_CR_nutrients$`Total phosphorus (uM)`
+ 
+   acf_ag_CR_nutrients$`Total phosphorus (uM)` <- ag_CR_nutrients %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(`Total phosphorus (uM)`)
+  
+    #acf_ag_CR_nutrients$`Phaeophytin (ug/L)`
+ 
+   acf_ag_CR_nutrients$`Phaeophytin (ug/L)` <- ag_CR_nutrients %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(`Phaeophytin (ug/L)`)
+  
+
+  
+
+    #acf_ag_CR_bacteria$Enterococcus
+
+ 
+ acf_ag_CR_bacteria$Enterococcus <- ag_CR_bacteria %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(Enterococcus)
+  
+      #acf_ag_CR_bacteria$E_coli
+
+ acf_ag_CR_bacteria$E_coli <- ag_CR_bacteria %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(E_coli)
+  
+     #acf_ag_CR_bacteria$coliform
+
+ acf_ag_CR_bacteria$coliform <- ag_CR_bacteria %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  summarise(across(c("HourlyDewPointTemperature ", "HourlyDryBulbTemperature ", "HourlyPrecipitation", "HourlyRelativeHumidity", "HourlyStationPressure ", "HourlyVisibility", "HourlyWetBulbTemperature ", "HourlyWindDirection ", "HourlyWindGustSpeed", "HourlyWindSpeed") %>%
+  pull(coliform)
+  
+
+
+```
+
+##CSO
+
+```{r}
+
+ #acf_CAM017$MG 
+
+ acf_CAM017$MG <- CAM017 %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date,hour) %>%
+  pull(MG)
+
+
+
+```
+
+
+
+#ACF
+
+
+#PACF
+
+control f w/ pacf 
+
+#ARIMA
+
+
+#COEFFICENTS OF CORRELATION
+
+#EDM UNIVARIATE
+
+
+
+#S-MAP
+
+#SIMPLEX
+
+#CMAP
+
+
+#CCM MWRA Non-CSO
+
+***CR_bacteria***
+
+
+#Enteroccus 
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#E_coli 
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+***CR_Secchi***
+
+
+
+#Total Suspended Solids (mg/L)
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+?
+
+```
+
+***CR_Nutrients ***
+
+#Ammonium (uM)
+
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#"Nitrate+nitrite (uM)"
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#Phosphate (uM)   
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#Total phosphorus (uM)
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+
+
+###CAMCSO
+
+```{r}
+
+CAM2015CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2015CAMCSO')
+
+
+CAM2016CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2016CAMCSO')
+
+CAM2016CSO <- subset(CAM2016CSO, select = c("Date", "CAM017* (MG)"))
+
+
+
+CAM2017CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2017CAMCSO')
+
+
+CAM2017CSO <- subset(CAM2017CSO, select = c("Date", "CAM017* (MG)"))
+
+
+
+
+CAM2018CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2018CAMCSO')
+
+
+CAM2018CSO <- subset(CAM2018CSO, select = c("Date", "CAM017* (MG)"))
+
+CAM2019CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2019CAMCSO')
+
+
+
+CAM2019CSO <- subset(CAM2019CSO, select = c("Date", "CAM017* (MG)"))
+
+CAM2020CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2020CAMCSO')
+
+
+CAM2020CSO <- subset(CAM2020CSO, select = c("Date", "CAM017* (MG)"))
+
+CAM2021CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2021CAMCSO')
+
+
+CAM2021CSO <- subset(CAM2021CSO, select = c("Date", "CAM017* (MG)"))
+
+CAM2022CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2022CAMCSO')
+
+CAM2022CSO <- subset(CAM2022CSO, select = c("Date", "CAM017* (MG)"))
+
+
+```
+
+```{r}
+# Combine all values into a single vector and sort them
+
+library(dplyr)
+
+# Ensure column names are consistent across all data frames
+colnames(CAM2015CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2016CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2017CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2018CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2019CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2020CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2021CSO) <- c("Date", "CAM017* (MG)")
+colnames(CAM2022CSO) <- c("Date", "CAM017* (MG)")
+
+CAM2015CSO$`CAM017* (MG)` <- as.numeric(CAM2015CSO$`CAM017* (MG)`)
+CAM2016CSO$`CAM017* (MG)` <- as.numeric(CAM2016CSO$`CAM017* (MG)`)
+CAM2017CSO$`CAM017* (MG)` <- as.numeric(CAM2017CSO$`CAM017* (MG)`)
+CAM2018CSO$`CAM017* (MG)` <- as.numeric(CAM2018CSO$`CAM017* (MG)`)
+CAM2019CSO$`CAM017* (MG)` <- as.numeric(CAM2019CSO$`CAM017* (MG)`)
+CAM2020CSO$`CAM017* (MG)` <- as.numeric(CAM2020CSO$`CAM017* (MG)`)
+CAM2021CSO$`CAM017* (MG)` <- as.numeric(CAM2021CSO$`CAM017* (MG)`)
+CAM2022CSO$`CAM017* (MG)` <- as.numeric(CAM2022CSO$`CAM017* (MG)`)
+
+
+# Make sure that the "CAM017* (MG)" column is of type double
+
+
+CAM017 <- bind_rows(
+ CAM2016CSO,
+  CAM2017CSO, 
+  CAM2018CSO,
+  CAM2019CSO,
+  CAM2020CSO,
+  CAM2021CSO,
+  CAM2022CSO,
+)
+
+
+CAM017 <- CAM017 %>% rename(MG = `CAM017* (MG)`)
+
+CAM017_discharges <- subset(CAM017, MG != 0)
+
+
+
+```
+
+    
+  ### ALL CSOs
+
+```{r}
+
+ag_df_CR$Date <- ag_df_CR$date
+
+ag_df_CR <- ag_df_CR[,-c(1) ]
+
+#rm(CR2023, CR2022, CR2020, CR2021, CR2020, CR2019, CR2018, CR2017, CR2016, CR2015, df_CR)
+
+ag_df_CR2 <- ag_df_CR
+
+
+#Fix Date Formats of Future Joins
+MWRACSOFinal$Date <- format(as.Date(MWRACSOFinal$Date, format=
+                           "%m-%d-%Y"         ), "%m-%d-%Y")
+
+
+ag_df_CR2$Date <- format(as.Date(ag_df_CR2$Date , format=
+                           "%Y-%m-%d"          ), "%m-%d-%Y")
+
+
+#join
+
+All <- merge(MWRACSOFinal, ag_df_CR2, by = "Date", all = TRUE)
+
+# Assuming your date column is named "Date"
+All$Date <- as.Date(All$Date, format="%m-%d-%Y")
+
+# Order the data frame by Year, Month, and Day
+All <- All[order(year(All$Date), month(All$Date), day(All$Date)), ]
+
+```
+
+Join CAM + CSO
+
+```{r}
+All <- merge(All, CAM017, by = "Date", all = TRUE)
+All <- All %>%
+  rename(CAM017MG = MG)
+
+
+
+```
+
+```{r}
+All <- na.omit(All)
+```
+
+
+
+###CCM LOGAN
+
+#HourlyAltimeterSetting
+
+
+```{r}
+
+cmap< - CCM(dataFrame = ag_Logan, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyDryBulbTemperature
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyPrecipitation
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyPressureChange #SKIP
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureChange", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureChange", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyPressureTendency #SKIP
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureTendency", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureTendency", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#HourlyRelativeHumidity
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyRelativeHumidity", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = " HourlyRelativeHumidity", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#HourlySeaLevelPressure #SKIP 
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlySeaLevelPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlySeaLevelPressure", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#HourlyStationPressure
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+#HourlyVisibility keep bc effect incident radiation 
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyWindDirection - could be matter but direction of wind may not tell how wind is pushing around in charles around. Dan Li. Andy? 
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyWindGustSpeed
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+#HourlyWindSpeed - synioptic variable 
+
+```{r}
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
+
+
+
+ccm uses y to predict x, if true, x can affect y 
+ccm wraps (Simplex target = x, columns = y)
+
+
+
+multivariate 
+Simplex ( Embedded = True, columns = c("x1, "x2)) 
+set CCM samples to 10 to see result 
+
+
+
+```{r}
+#1 is get the tau/Tp sorted
+
+
+But when we get to multivariate, can include the seasonal cycle:
+
+yday(as.Date("2024-03-01"))
+df_example <- data.frame(seq(as.Date("2010-01-01"),by=1,length.out=3000))
+df_example <- data.frame(Date=seq(as.Date("2010-01-01"),by=1,length.out=3000))
+df_example <- df_example %>% mutate(yday = yday(Date))
+head(df_example)
+df_example <- df_example %>% mutate(sin_season = sin(2*pi*yday/365))
+df_example %>% ggplot(aes(x=Date,y=sin_season)) + geom_line()
+
+
+
+```
+
+#FIND CRITICAL VALUES 
+
+```{r}
+critical.r <- function( n, alpha = .05 ) {
+  df <- n - 2
+  critical.t <- qt(alpha/2, df, lower.tail = F)
+  critical.r <- sqrt( (critical.t^2) / ( (critical.t^2) + df ) )
+  return(critical.r)
+}
+# Example usage: Critical correlation coefficient at sample size of n = 100
+critical.r( 100 )
+```
+
+
+#EDM MULTIVARIATE 
+
+#MULTIVIEW 
+
+#HISTOGRAM
+
+
+
+
+

@@ -2,6 +2,8 @@
 title: "HAB_CCM"
 output: html_document
 date: "2024-02-01"
+editor_options: 
+  chunk_output_type: console
 ---
 #Library
 
@@ -13,6 +15,7 @@ library(padr)
 library(rEDM)
 library(ggplot2)
 library(zoo)
+library(quantreg)
 
 ```
 
@@ -20,6 +23,7 @@ library(zoo)
 #Vignette
 ```{r}
 vignette('rEDM-tutorial')
+
 ```
 
 
@@ -58,6 +62,7 @@ CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1vaDoymaAQmNFKqIgo1
   saveRDS(CR2021, "CR2021.rds")
 }
 
+####FIX 2021
 
 #CR2020
 
@@ -172,9 +177,11 @@ df_CR$Celsius,
 
 ag_df_CR <-df_CR %>%
    group_by(date) %>%
-  summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
+  summarise(chl=mean(chl, na.rm = TRUE), phy=mean(phy, na.rm = TRUE), ph=mean(ph, na.rm = TRUE), Celsius=mean(Celsius,na.rm = TRUE), spcond=mean(spcond,na.rm = TRUE), do=mean(do,na.rm = TRUE), turb=mean(turb,na.rm = TRUE), Salinity = mean(Salinity,na.rm = TRUE))
 
+ag_df_CR <- na.omit(ag_df_CR)
 
+plot(ag_df_CR$date,ag_df_CR$Salinity)
 ```
 
 ```{r}
@@ -186,10 +193,13 @@ del_phy_ag_df_CR <- ag_df_CR %>% pad %>%
 mutate(del_phy = phy - lag(phy,1))
  ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
  
+ ag_df_CR <- ag_df_CR %>% pad %>%
+   mutate(del_phy = phy - lag(phy,1))
+ ag_df_CR %>% ggplot(aes(x=date,y=del_phy)) + geom_line()
+ 
+ ag_df_CR <- na.omit(ag_df_CR)
  
 ```
-
-
 
 
 ```{r}
@@ -201,7 +211,6 @@ if (file.exists("ag_df_CR.rds")) {
 } else {
   saveRDS(ag_df_CR, "ag_df_CR.rds")
 }
-
 
 ```
 
@@ -270,42 +279,31 @@ Logan <- Logan %>%
   mutate(across(all_of(numeric_cols), as.numeric))
 
 
-
-
-
-
-
-
 Logan$HourlySeaLevelPressure <- gsub("s$", "", Logan$HourlySeaLevelPressure)
-
-
-
-
-
-
 
 ag_Logan <- Logan %>%
   group_by(DATE) %>%
   summarise(
-    HourlyAltimeterSetting = mean(HourlyAltimeterSetting),
-    HourlyDewPointTemperature = mean(HourlyDewPointTemperature),
-    HourlyDryBulbTemperature = mean(HourlyDryBulbTemperature), 
-    HourlyPrecipitation = sum(HourlyPrecipitation),
-    HourlyPressureChange = mean(HourlyPressureChange),
-    HourlyPressureTendency = mean(HourlyPressureTendency),
-    HourlyRelativeHumidity = mean(HourlyRelativeHumidity), 
-    HourlySeaLevelPressure = mean(HourlySeaLevelPressure),
-    HourlyStationPressure = mean(HourlyStationPressure),
-    HourlyVisibility = mean(HourlyVisibility),
-    HourlyWetBulbTemperature = mean(HourlyWetBulbTemperature), 
-    HourlyWindDirection = mean(HourlyWindDirection), 
-    HourlyWindGustSpeed = mean(HourlyWindGustSpeed), 
-    HourlyWindSpeed = mean(HourlyWindSpeed)
+    HourlyAltimeterSetting = mean(HourlyAltimeterSetting, na.rm = TRUE),
+    HourlyDewPointTemperature = mean(HourlyDewPointTemperature, na.rm = TRUE),
+    HourlyDryBulbTemperature = mean(HourlyDryBulbTemperature, na.rm = TRUE), 
+    HourlyPrecipitation = sum(HourlyPrecipitation, na.rm = TRUE),
+   # HourlyPressureChange = mean(HourlyPressureChange, na.rm = TRUE), SKIP
+   # HourlyPressureTendency = mean(HourlyPressureTendency, na.rm = TRUE), SKIP
+    HourlyRelativeHumidity = mean(HourlyRelativeHumidity, na.rm = TRUE), 
+   # HourlySeaLevelPressure = mean(HourlySeaLevelPressure, na.rm = TRUE), SKIP
+    HourlyStationPressure = mean(HourlyStationPressure, na.rm = TRUE),
+    HourlyVisibility = mean(HourlyVisibility, na.rm = TRUE),
+    HourlyWetBulbTemperature = mean(HourlyWetBulbTemperature, na.rm = TRUE), 
+    HourlyWindDirection = mean(HourlyWindDirection, na.rm = TRUE), 
+    HourlyWindGustSpeed = mean(HourlyWindGustSpeed, na.rm = TRUE), 
+    HourlyWindSpeed = mean(HourlyWindSpeed, na.rm = TRUE)
     
     )
+ag_Logan <- na.omit(ag_Logan)
+
 
 ```
-
 
 
 
@@ -565,6 +563,2740 @@ ag_CR_secchi <-CR_secchi_011 %>%
 ```
 
 
+CCM LibSizes Explained
+- CCM is wraps a bunch of straps for doing cross map prediction for subsets of the data
+- result is plotted is Cross Map Skill as amount of data used (L library size) 
+                  - number of attractor points 
+
+- expect quasi logistic saturation, log spaced 
+
+
+libSizes - 20 200  10 sequence of libsizes to test, x values in CCM curve
+Sample - 
+this is where you do bootstrap, subsets of data ex: 100, do 100 n number of random resamples
+
+#SURROGATE
+
+```{r}
+
+ag_df_CR <- na.omit(ag_df_CR)
+
+# Convert ag_df_CR to a time series object if necessary
+Surrogate_phy <- as.ts(ag_df_CR$phy)
+Surrogate_chl <- as.ts(ag_df_CR$chl)
+Surrogate_ph <- as.ts(ag_df_CR$ph)
+Surrogate_Celsius <- as.ts(ag_df_CR$Celsius)
+Surrogate_spcond <- as.ts(ag_df_CR$spcond)
+Surrogate_do <- as.ts(ag_df_CR$do)
+Surrogate_turb <- as.ts(ag_df_CR$turb)
+Surrogate_Salinity <- as.ts(ag_df_CR$Salinity)
+Surrogate_del_phy <- as.ts(ag_df_CR$Salinity)
+
+#Surrogate
+
+Surrogate_phy <- SurrogateData(Surrogate_phy, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_chl <- SurrogateData(Surrogate_chl, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_ph <- SurrogateData(Surrogate_ph, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_Celsius <- SurrogateData(Surrogate_Celsius, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_spcond <- SurrogateData(Surrogate_spcond, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_do <- SurrogateData(Surrogate_do, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_turb <- SurrogateData(Surrogate_turb, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_Salinity <- SurrogateData(Surrogate_Salinity, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_del_phy <- SurrogateData(Surrogate_del_phy, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+
+# Check the class of each object
+sapply(list(Surrogate_phy, Surrogate_chl, Surrogate_ph, Surrogate_Celsius, 
+            Surrogate_spcond, Surrogate_do, Surrogate_turb, Surrogate_Salinity, 
+            Surrogate_del_phy), class)
+
+Surrogate_phy <- as.data.frame(Surrogate_phy)
+Surrogate_chl <- as.data.frame(Surrogate_chl)
+Surrogate_ph <- as.data.frame(Surrogate_ph)
+Surrogate_Celsius <- as.data.frame(Surrogate_Celsius)
+Surrogate_spcond <- as.data.frame(Surrogate_spcond)
+Surrogate_do <- as.data.frame(Surrogate_do)
+Surrogate_turb <- as.data.frame(Surrogate_turb)
+Surrogate_Salinity <- as.data.frame(Surrogate_Salinity)
+Surrogate_del_phy <- as.data.frame(Surrogate_del_phy)
+
+
+Surrogate <- bind_cols(
+  Surrogate_phy,
+  Surrogate_chl,
+  Surrogate_ph,
+  Surrogate_Celsius,
+  Surrogate_spcond,
+  Surrogate_do,
+  Surrogate_turb,
+  Surrogate_Salinity,
+  Surrogate_del_phy
+  
+)
+
+
+# Set the column names
+colnames(Surrogate) <- c(
+  "phy",
+  "chl",
+  "ph",
+  "Celsius",
+  "spcond",
+  "do",
+  "turb",
+  "Salinity",
+  "del_phy"
+)
+
+```
+
+ts <- the original time series
+method	<- which algorithm to use to generate surrogate data
+num_surr <- the number of null surrogates to generate
+T_period <- the period of seasonality for seasonal surrogates (ignored for other methods)
+alpha	<- additive noise factor: N(0,alpha)
+
+
+
+#PLOTS
+```{r}
+
+#Ph MEDIAN AND MEAN ARE THE SAME?
+
+
+#PH VS. PHY
+
+ag_df_CR %>% 
+  ggplot(aes(x=ph, y=phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", ) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$ph), color = "Ph Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$ph), color = "Ph Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Ph Mean Trendline" = "orange", "Ph Median Trendline" = "brown"), 
+                     breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline"),
+                     labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(1, 0, 0, 0, 0 ,0)
+  ))) +
+  ggtitle("Ph vs. Phy") +
+  labs(color = "Legend Title")
+
+#PH VS. CHL
+
+
+ag_df_CR %>% 
+  ggplot(aes(x=ph, y=chl, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", ) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$ph), color = "Ph Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$ph), color = "Ph Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Ph Mean Trendline" = "orange", "Ph Median Trendline" = "brown"), 
+                     breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline"),
+                     labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(1, 1, 1, 1, 1 ,1)
+  ))) +
+  ggtitle("Ph vs. Chl") +
+  labs(color = "Legend Title")
+
+
+# Ph vs. Del_phy
+ag_df_CR %>% 
+  ggplot(aes(x=ph, y=del_phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$ph), color = "Ph Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$ph), color = "Ph Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Ph Mean Trendline" = "orange", "Ph Median Trendline" = "brown"), 
+                     breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline"),
+                     labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(0, 0, 0, 0, 1, 1)
+  ))) +
+  ggtitle("Ph vs. Del_phy") +
+  labs(color = "Legend Title")
+
+
+# Chl vs. Phy
+ag_df_CR %>% 
+  ggplot(aes(x=chl, y=phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Chl Mean Trendline" = "orange", "Chl Median Trendline" = "brown"), 
+                     breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Chl Mean Trendline", "Chl Median Trendline"),
+                     labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Chl Mean Trendline", "Chl Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(0, 1, 1, 1, 1 ,1)
+  ))) +
+  ggtitle("Chl vs. Phy") +
+  labs(color = "Legend Title")
+
+# Celsius vs. Phy
+ag_df_CR %>% 
+  ggplot(aes(x=Celsius, y=phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$Celsius), color = "Celsius Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$Celsius), color = "Celsius Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Celsius Mean Trendline" = "orange", "Celsius Median Trendline" = "brown"), 
+                     breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline"),
+                     labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(0, 1, 1, 1, 1 ,1)
+  ))) +
+  ggtitle("Celsius vs. Phy") +
+  labs(color = "Legend Title")
+
+# Celsius vs. Chl
+ag_df_CR %>% 
+  ggplot(aes(x=Celsius, y=chl, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$Celsius), color = "Celsius Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Celsius), color = "Celsius Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Celsius Mean Trendline" = "orange", "Celsius Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Celsius vs. Chl") +
+labs(color = "Legend Title")
+
+
+#Celsius vs. Del_phy
+
+ag_df_CR %>%
+ggplot(aes(x=Celsius, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$Celsius), color = "Celsius Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Celsius), color = "Celsius Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Celsius Mean Trendline" = "orange", "Celsius Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Celsius vs. Del_phy") +
+labs(color = "Legend Title")
+
+#Spcond vs. Phy
+ag_df_CR %>%
+ggplot(aes(x=spcond, y=phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$spcond), color = "Spcond Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$spcond), color = "Spcond Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Spcond Mean Trendline" = "orange", "Spcond Median Trendline" = "brown"),
+breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline"),
+labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 1, 1, 1, 1 ,1)
+))) +
+ggtitle("Spcond vs. Phy") +
+labs(color = "Legend Title")
+
+#Spcond vs. Chl
+ag_df_CR %>%
+ggplot(aes(x=spcond, y=chl, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$spcond), color = "Spcond Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$spcond), color = "Spcond Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Spcond Mean Trendline" = "orange", "Spcond Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Spcond vs. Chl") +
+labs(color = "Legend Title")
+
+
+#Spcond vs. Del_phy
+
+ag_df_CR %>%
+ggplot(aes(x=spcond, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$spcond), color = "Spcond Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$spcond), color = "Spcond Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Spcond Mean Trendline" = "orange", "Spcond Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Spcond vs. Del_phy") +
+labs(color = "Legend Title")
+
+#Do vs. Phy
+ag_df_CR %>%
+ggplot(aes(x=do, y=phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$do), color = "Do Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$do), color = "Do Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Do Mean Trendline" = "orange", "Do Median Trendline" = "brown"),
+breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline"),
+labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 1, 1, 1, 1 ,1)
+))) +
+ggtitle("Do vs. Phy") +
+labs(color = "Legend Title")
+
+#Do vs. Chl
+ag_df_CR %>%
+ggplot(aes(x=do, y=chl, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$do), color = "Do Mean Trendline"), linetype = "dashed
+") +
+geom_vline(aes(xintercept = median(ag_df_CR$do), color = "Do Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Do Mean Trendline" = "orange", "Do Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Do vs. Chl") +
+labs(color = "Legend Title")
+
+#Do vs. Del_phy
+ag_df_CR %>%
+ggplot(aes(x=do, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$do), color = "Do Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$do), color = "Do Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Do Mean Trendline" = "orange", "Do Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Do vs. Del_phy") +
+labs(color = "Legend Title")
+
+#Turb vs. Chl
+ag_df_CR %>%
+ggplot(aes(x=turb, y=chl, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$turb), color = "Turb Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$turb), color = "Turb Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Turb Mean Trendline" = "orange", "Turb Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Turb vs. Chl") +
+labs(color = "Legend Title")
+
+
+#Turb vs. Phy
+ag_df_CR %>%
+ggplot(aes(x=turb, y=phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$turb), color = "Turb Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$turb), color = "Turb Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Turb Mean Trendline" = "orange", "Turb Median Trendline" = "brown"),
+breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline"),
+labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 1, 1, 1, 1 ,1)
+))) +
+ggtitle("Turb vs. Phy") +
+labs(color = "Legend Title")
+
+#Turb vs. Del_phy
+ag_df_CR %>%
+ggplot(aes(x=turb, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$turb), color = "Turb Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$turb), color = "Turb Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Turb Mean Trendline" = "orange", "Turb Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 1, 1, 1, 1 ,1)
+))) +
+ggtitle("Turb vs. Del_phy") +
+labs(color = "Legend Title")
+
+#Salinity vs. Phy
+ag_df_CR %>%
+ggplot(aes(x=Salinity, y=phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$Salinity), color = "Salinity Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Salinity), color = "Salinity Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Salinity Mean Trendline" = "orange", "Salinity Median Trendline" = "brown"),
+breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline"),
+labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Salinity vs. Phy") +
+labs(color = "Legend Title")
+
+#Salinity vs. Chl
+ag_df_CR %>%
+ggplot(aes(x=Salinity, y=chl, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$Salinity), color = "Salinity Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Salinity), color = "Salinity Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Salinity Mean Trendline" = "orange", "Salinity Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Salinity vs. Chl") +
+labs(color = "Legend Title")
+
+
+
+#Salinity vs. Del_phy
+
+ag_df_CR %>%
+ggplot(aes(x=Salinity, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$Salinity), color = "Salinity Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Salinity), color = "Salinity Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Salinity Mean Trendline" = "orange", "Salinity Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Salinity vs. Del_phy") +
+labs(color = "Legend Title")
+
+
+# Phy vs. Chl
+ag_df_CR %>% 
+  ggplot(aes(x=phy, y=chl, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Phy Mean Trendline" = "orange", "Phy Median Trendline" = "brown"), 
+                     # breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline", 
+                     #            "Best Fit Line", "Phy Mean Trendline", "Phy Median Trendline"),
+                     labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline", 
+                                "Best Fit Line", "Phy Mean Trendline", "Phy Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(0, 0, 0, 1, 1 ,1)
+  ))) +
+  ggtitle("Phy vs. Chl") +
+  labs(color = "Legend Title")
+
+# Phy vs. Del_phy
+ag_df_CR %>% 
+  ggplot(aes(x=phy, y=del_phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Phy Mean Trendline" = "orange", "Phy Median Trendline" = "brown"), 
+                     breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Phy Mean Trendline", "Phy Median Trendline"),
+                     labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Phy Mean Trendline", "Phy Median Trendline")) +
+  # guides(color = guide_legend(override.aes = list(
+  #   shape = c(19, NA, NA, NA, NA, NA),
+  #   linetype = c(0, 0, 0, 1, 1 ,1)
+  # ))) +
+  ggtitle("Phy vs. Del_phy") +
+  labs(color = "Legend Title")
+
+# Chl vs. Del_phy
+ag_df_CR %>% 
+  ggplot(aes(x=chl, y=del_phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Del_phy Mean Trendline" = "blue", "Del_phy Mean Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Chl Mean Trendline" = "orange", "Chl Median Trendline" = "brown"), 
+                     breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Chl Mean Trendline", "Chl Median Trendline"),
+                     labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Chl Mean Trendline", "Chl Median Trendline")) +
+  # guides(color = guide_legend(override.aes = list(
+  #   shape = c(19, NA, NA, NA, NA, NA),
+  #   linetype = c(0, 0, 0, 1, 1 ,1)
+  # ))) +
+  ggtitle("Chl vs. Del_phy") +
+  labs(color = "Legend Title")
+
+
+
+
+
+#median: do 0.5 quantile regression
+
+
+
+
+```
+
+
+#QUANTILE REGRESSION
+```{r}
+
+# Quantile regression
+
+#.PHY
+#.DEL_PHY
+#.CHL.
+
+#PH 
+
+#PH.PHY
+#PH.PHY PLOT
+
+qr.ph.phy.25 <- rq(ph ~ phy, data = ag_df_CR, tau = 0.25)
+qr.ph.phy.50 <- rq(ph ~ phy, data = ag_df_CR, tau = 0.5)
+qr.ph.phy.75 <- rq(ph ~ phy, data = ag_df_CR, tau = 0.75)
+
+
+
+ggplot(ag_df_CR, aes(x = ph, y = phy)) +
+  geom_point() +
+   geom_quantile(aes(color = "Quantile 0.25"),  rq = qr.ph.phy.25, linetype = "dashed") +
+   geom_quantile(aes(color = "Quantile 0.5"), rq = qr.ph.phy.50, linetype = "dashed") +
+ geom_quantile(aes(color = "Quantile 0.75"), rq = qr.ph.phy.75, linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: ph ~ phy",
+       x = "ph", y = "phy") +
+  theme_minimal()
+
+#Fix rq + quantile + geom_quantile 
+
+
+#PH.DEL_PHY
+
+qr.ph.del_phy.25 <- rq(ph ~ del_phy, data = ag_df_CR, tau = 0.25)
+qr.ph.del_phy.50 <- rq(ph ~ del_phy, data = ag_df_CR, tau = 0.5)
+qr.ph.del_phy.75 <- rq(ph ~ del_phy,data = ag_df_CR, tau = 0.75)
+
+#PH.DEL_PHY PLOT
+
+ggplot(ag_df_CR, aes(x = ph, y = del_phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.ph.del_phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.ph.del_phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.ph.del_phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: ph ~ del_phy",
+       x = "ph", y = "del_phy") +
+  theme_minimal()
+
+
+#PH.CHL
+
+qr.ph.chl.25 <- rq(ph ~ chl, data = ag_df_CR, tau = 0.25)
+qr.ph.chl.50 <- rq(ph ~ chl, data = ag_df_CR, tau = 0.5)
+qr.ph.chl.75 <- rq(ph ~ chl,data = ag_df_CR, tau = 0.75)
+
+
+
+#PH.CHL PLOT
+
+ggplot(ag_df_CR, aes(x = ph, y = chl)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.ph.chl.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.ph.chl.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.ph.chl.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: ph ~ chl",
+       x = "ph", y = "chl") +
+  theme_minimal()
+
+
+#Celsius.
+
+#Celsius.PHY
+
+qr.Celsius.phy.25 <- rq(Celsius ~ phy, data = ag_df_CR, tau = 0.25)
+qr.Celsius.phy.50 <- rq(Celsius ~ phy, data = ag_df_CR, tau = 0.5)
+qr.Celsius.phy.75 <- rq(Celsius ~ phy, data = ag_df_CR, tau = 0.75)
+
+
+#Celsius.phy PLOT
+
+ggplot(ag_df_CR, aes(x = Celsius, y = phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.Celsius.phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.Celsius.phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.Celsius.phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: Celsius ~ phy",
+       x = "Celsius", y = "phy") +
+  theme_minimal()
+
+#Celsius.DEL_PHL
+
+qr.Celsius.del_phy.25 <- rq(Celsius ~ del_phy, data = ag_df_CR, tau = 0.25)
+qr.Celsius.del_phy.50 <- rq(Celsius ~ del_phy, data = ag_df_CR, tau = 0.5)
+qr.Celsius.del_phy.75 <- rq(Celsius ~ del_phy,data = ag_df_CR, tau = 0.75)
+
+
+#Celsius.del_phy PLOT
+
+ggplot(ag_df_CR, aes(x = Celsius, y = del_phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.Celsius.del_phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.Celsius.del_phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.Celsius.del_phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: Celsius ~ del_phy",
+       x = "Celsius", y = "del_phy") +
+  theme_minimal()
+
+
+#Celsius.CHL
+
+qr.Celsius.chl.25 <- rq(Celsius ~ chl, data = ag_df_CR, tau = 0.25)
+qr.Celsius.chl.50 <- rq(Celsius ~ chl, data = ag_df_CR, tau = 0.5)
+qr.Celsius.chl.75 <- rq(Celsius ~ chl,data = ag_df_CR, tau = 0.75)
+
+#Celsius.CHL PLOT 
+
+ggplot(ag_df_CR, aes(x = Celsius, y = chl)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.Celsius.chl.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.Celsius.chl.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.Celsius.chl.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: Celsius ~ chl",
+       x = "Celsius", y = "chl") +
+  theme_minimal()
+
+
+#Spcond
+
+#spcond.PHY
+
+qr.spcond.phy.25 <- rq(spcond ~ phy, data = ag_df_CR, tau = 0.25)
+qr.spcond.phy.50 <- rq(spcond ~ phy, data = ag_df_CR, tau = 0.5)
+qr.spcond.phy.75 <- rq(spcond ~ phy, data = ag_df_CR, tau = 0.75)
+
+
+#spcond.PHY PLOT 
+
+
+ggplot(ag_df_CR, aes(x = spcond, y = phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.spcond.phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.spcond.phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.spcond.phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: spcond ~ phy",
+       x = "spcond", y = "phy") +
+  theme_minimal()
+
+
+
+#spcond.DEL_PHY
+
+qr.spcond.del_phy.25 <- rq(spcond ~ del_phy, data = ag_df_CR, tau = 0.25)
+qr.spcond.del_phy.50 <- rq(spcond ~ del_phy, data = ag_df_CR, tau = 0.5)
+qr.spcond.del_phy.75 <- rq(spcond ~ del_phy,data = ag_df_CR, tau = 0.75)
+
+
+
+ggplot(ag_df_CR, aes(x = spcond, y = del_phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.spcond.del_phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.spcond.del_phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.spcond.del_phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: spcond ~ del_phy",
+       x = "spcond", y = "del_phy") +
+  theme_minimal()
+
+
+
+#spcond.CHL
+
+qr.spcond.chl.25 <- rq(spcond ~ chl, data = ag_df_CR, tau = 0.25)
+qr.spcond.chl.50 <- rq(spcond ~ chl, data = ag_df_CR, tau = 0.5)
+qr.spcond.chl.75 <- rq(spcond ~ chl,data = ag_df_CR, tau = 0.75)
+
+
+
+ggplot(ag_df_CR, aes(x = spcond, y = chl)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.spcond.chl.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.spcond.chl.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.spcond.chl.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: spcond ~ chl",
+       x = "spcond", y = "chl") +
+  theme_minimal()
+
+
+#Do
+
+#do.PHY
+
+qr.do.phy.25 <- rq(do ~ phy, data = ag_df_CR, tau = 0.25)
+qr.do.phy.50 <- rq(do ~ phy, data = ag_df_CR, tau = 0.5)
+qr.do.phy.75 <- rq(do ~ phy, data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = do, y = phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.do.phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.do.phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.do.phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: do ~ phy",
+       x = "do", y = "phy") +
+  theme_minimal()
+
+
+
+#do.DEL_PHY
+
+qr.do.del_phy.25 <- rq(do ~ del_phy, data = ag_df_CR, tau = 0.25)
+qr.do.del_phy.50 <- rq(do ~ del_phy, data = ag_df_CR, tau = 0.5)
+qr.do.del_phy.75 <- rq(do ~ del_phy,data = ag_df_CR, tau = 0.75)
+
+
+
+ggplot(ag_df_CR, aes(x = do, y = del_phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.do.del_phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.do.del_phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.do.del_phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: do ~ del_phy",
+       x = "do", y = "del_phy") +
+  theme_minimal()
+
+
+
+#do.CHL
+
+qr.do.chl.25 <- rq(do ~ chl, data = ag_df_CR, tau = 0.25)
+qr.do.chl.50 <- rq(do ~ chl, data = ag_df_CR, tau = 0.5)
+qr.do.chl.75 <- rq(do ~ chl,data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = do, y = chl)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.do.chl.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.do.chl.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.do.chl.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: do ~ chl",
+       x = "do", y = "chl") +
+  theme_minimal()
+
+
+
+#Turb
+
+
+#Turb.PHY
+
+qr.turb.phy.25 <- rq(turb ~ phy, data = ag_df_CR, tau = 0.25)
+qr.turb.phy.50 <- rq(turb ~ phy, data = ag_df_CR, tau = 0.5)
+qr.turb.phy.75 <- rq(turb ~ phy, data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = do, y = phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.turb.phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.turb.phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.turb.phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: turb ~ phy",
+       x = "turb", y = "phy") +
+  theme_minimal()
+
+
+#Turb.DEL_PHY
+
+qr.turb.del_phy.25 <- rq(turb ~ del_phy, data = ag_df_CR, tau = 0.25)
+qr.turb.del_phy.50 <- rq(turb ~ del_phy, data = ag_df_CR, tau = 0.5)
+qr.turb.del_phy.75 <- rq(turb ~ del_phy,data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = do, y = del_phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.turb.del_phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.turb.del_phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.turb.del_phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: turb ~ del_phy",
+       x = "turb", y = "del_phy") +
+  theme_minimal()
+
+
+
+#turb.CHL
+
+qr.turb.chl.25 <- rq(turb ~ chl, data = ag_df_CR, tau = 0.25)
+qr.turb.chl.50 <- rq(turb ~ chl, data = ag_df_CR, tau = 0.5)
+qr.turb.chl.75 <- rq(turb ~ chl,data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = do, y = chl)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.turb.chl.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.turb.chl.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.turb.chl.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: turb ~ chl",
+       x = "turb", y = "chl") +
+  theme_minimal()
+
+
+#Salinity
+
+#Salinity.PHY
+
+qr.Salinity.phy.25 <- rq(Salinity ~ phy, data = ag_df_CR, tau = 0.25)
+qr.Salinity.phy.50 <- rq(Salinity ~ phy, data = ag_df_CR, tau = 0.5)
+qr.Salinity.phy.75 <- rq(Salinity ~ phy, data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = Salinity, y = phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.Salinity.phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.Salinity.phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.Salinity.phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: Salinity ~ phy",
+       x = "Salinity", y = "phy") +
+  theme_minimal()
+
+
+
+#Salinity.DEL_PHY
+
+qr.Salinity.del_phy.25 <- rq(Salinity ~ del_phy, data = ag_df_CR, tau = 0.25)
+qr.Salinity.del_phy.50 <- rq(Salinity ~ del_phy, data = ag_df_CR, tau = 0.5)
+qr.Salinity.del_phy.75 <- rq(Salinity ~ del_phy,data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = Salinity, y = del_phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.Salinity.del_phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.Salinity.del_phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.Salinity.del_phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: Salinity ~ del_phy",
+       x = "Salinity", y = "del_phy") +
+  theme_minimal()
+
+
+#Salinity.CHL
+
+qr.Salinity.chl.25 <- rq(Salinity ~ chl, data = ag_df_CR, tau = 0.25)
+qr.Salinity.chl.50 <- rq(Salinity ~ chl, data = ag_df_CR, tau = 0.5)
+qr.Salinity.chl.75 <- rq(Salinity ~ chl,data = ag_df_CR, tau = 0.75)
+
+ggplot(ag_df_CR, aes(x = Salinity, y = chl)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.Salinity.chl.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.Salinity.chl.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.Salinity.chl.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: Salinity ~ chl",
+       x = "Salinity", y = "chl") +
+  theme_minimal()
+
+
+
+#DEL_PHY
+
+#del_phy.PHY
+
+qr.del_phy.phy.25 <- rq(del_phy ~ phy, data = ag_df_CR, tau = 0.25)
+qr.del_phy.phy.50 <- rq(del_phy ~ phy, data = ag_df_CR, tau = 0.5)
+qr.del_phy.phy.75 <- rq(del_phy ~ phy, data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = del_phy, y = phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.del_phy.phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.del_phy.phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.del_phy.phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: del_phy ~ phy",
+       x = "del_phy", y = "phy") +
+  theme_minimal()
+
+
+
+#del_PHY.CHL
+
+qr.del_phy.chl.25 <- rq(del_phy ~ chl, data = ag_df_CR, tau = 0.25)
+qr.del_phy.chl.50 <- rq(del_phy ~ chl, data = ag_df_CR, tau = 0.5)
+qr.del_phy.chl.75 <- rq(del_phy ~ chl,data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = del_phy, y = chl)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.del_phy.chl.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.del_phy.chl.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.del_phy.chl.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: del_phy ~ chl",
+       x = "del_phy", y = "chl") +
+  theme_minimal()
+
+
+#PHY
+
+#PHY.DEL_PHY
+
+qr.phy.del_phy.25 <- rq(phy ~ del_phy, data = ag_df_CR, tau = 0.25)
+qr.phy.del_phy.50 <- rq(phy ~ del_phy, data = ag_df_CR, tau = 0.5)
+qr.phy.del_phy.75 <- rq(phy ~ del_phy, data = ag_df_CR, tau = 0.75)
+
+
+
+ggplot(ag_df_CR, aes(x = phy, y = del_phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.phy.del_phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.phy.del_phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.phy.del_phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: del_phy ~ chl",
+       x = "phy", y = "del_phy") +
+  theme_minimal()
+
+
+
+
+
+
+#PHY.CHL
+
+qr.phy.chl.25 <- rq(phy ~ chl, data = ag_df_CR, tau = 0.25)
+qr.phy.chl.50 <- rq(phy ~ chl, data = ag_df_CR, tau = 0.5)
+qr.phy.chl.75 <- rq(phy ~ chl,data = ag_df_CR, tau = 0.75)
+
+
+
+ggplot(ag_df_CR, aes(x = phy, y = chl)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.phy.chl.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.phy.chl.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.phy.chl.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: del_phy ~ chl",
+       x = "phy", y = "chl") +
+  theme_minimal()
+
+
+
+
+#CHL
+
+
+#chl.phy
+
+qr.chl.phy.25 <- rq(ph ~ phy, data = ag_df_CR, tau = 0.25)
+qr.chl.phy.50 <- rq(ph ~ phy, data = ag_df_CR, tau = 0.5)
+qr.chl.phy.75 <- rq(ph ~ phy,data = ag_df_CR, tau = 0.75)
+
+
+ggplot(ag_df_CR, aes(x = chl, y = phy)) +
+  geom_point() +
+  geom_quantile(aes(color = "Quantile 0.25"), rq = qr.chl.phy.25, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.5"), rq = qr.chl.phy.50, , linetype = "dashed") +
+  geom_quantile(aes(color = "Quantile 0.75"), rq = qr.chl.phy.75, , linetype = "dashed") +
+  scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+  labs(title = "Quantile Regression: chl ~ phy",
+       x = "chl", y = "dphy") +
+  theme_minimal()
+
+
+
+#Chl.DEL_PHY
+
+qr.chl.del_phy.25 <- rq(ph ~ del_phy, data = ag_df_CR, tau = 0.25)
+qr.chl.del_phy.50 <- rq(ph ~ del_phy, data = ag_df_CR, tau = 0.5)
+qr.chl.del_phy.75 <- rq(ph ~ del_phy,data = ag_df_CR, tau = 0.75)
+
+
+
+ggplot(ag_df_CR, aes(x = chl, y = del_phy)) +
+  geom_point() +
+  stat_quantile(aes(color = "Quantile 0.25"), rq = qr.chl.del_phy.25, linetype = "dashed") +
+  stat_quantile(aes(color = "Quantile 0.5"), rq = qr.chl.del_phy.50, linetype = "dashed") +
+  stat_quantile(aes(color = "Quantile 0.75"), rq = qr.chl.del_phy.75, linetype = "dashed") +
+  scale_color_manual(values = c("red", "blue", "green"),
+                     breaks = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+                     name = "Quantile") +
+    # scale_color_manual(values = c("Quantile 0.25" = "red", "Quantile 0.5" = "blue", "Quantile 0.75" = "green"),
+    #                  labels = c("Quantile 0.25", "Quantile 0.5", "Quantile 0.75"),
+    #                  name = "Quantile") +
+  labs(title = "Quantile Regression: chl ~ del_phy",
+       x = "chl", y = "del_phy") +
+  theme_minimal()
+
+
+
+
+```
+
+
+
+
+###CCM EPA BUOY
+```{r}
+ag_df_CR <- na.omit(ag_df_CR)
+```
+
+##PH
+
+#CMAP
+
+
+```{r}
+
+ag_df_CR <- na.omit(ag_df_CR)
+
+#No "Includeddata = TRUE"
+
+#CMAPS
+
+cmap.ph.del_phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.ph.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.ph.chl <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+#Surrogates
+
+Surr.cmap.ph.phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.ph.phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.ph.phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "ph", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+#CMAP Correlations 
+
+ph.del_phy.corr <- cor(cmap.ph.del_phy)
+ph.del_phy.corr <- ph.del_phy.corr[1, 3]
+
+ph.phy.corr <- cor(cmap.ph.phy)
+ph.phy.corr <- ph.phy.corr[1, 3]
+
+ph.chl.corr <- cor(cmap.ph.chl)
+ph.chl.corr <- ph.chl.corr[1, 3]
+
+#Surrogate Correlations 
+
+Surr.ph.del_phy.corr <- cor(Surr.cmap.ph.del_phy)
+Surr.ph.del_phy.corr <- Surr.ph.del_phy.corr[1, 3]
+
+Surr.ph.phy.corr <- cor(Surr.cmap.ph.phy)
+Surr.ph.phy.corr <- Surr.ph.phy.corr[1, 3]
+
+Surr.ph.chl.corr <- cor(Surr.cmap.ph.chl)
+Surr.ph.chl.corr <- Surr.ph.chl.corr[1, 3]
+
+#CMAP PLOTS
+
+#ph.del
+plot(x = cmap.ph.del[,1], y = cmap.ph.del[,2], type = "l",
+     main = "Ph V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.ph.del[,1], y = cmap.ph.del[,3], col = "red")
+abline(h = ph.del.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.ph.del)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+#ph.phy
+plot(x = cmap.ph.phy[,1], y = cmap.ph.phy[,2], type = "l",
+     main = "Ph V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.ph.phy[,1], y = cmap.ph.phy[,3], col = "red")
+abline(h = ph.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.ph.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+#ph.chl
+
+plot(x = cmap.ph.chl[,1], y = cmap.ph.chl[,2], type = "l",
+     main = "Ph V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.ph.chl[,1], y = cmap.ph.chl,3], col = "red")
+abline(h = ph.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.ph.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+
+#Surrogate Plots
+
+
+#ph.del
+plot(x = Surr.cmap.ph.del[,1], y = Surr.cmap.ph.del[,2], type = "l",
+     main = "Ph V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.ph.del[,1], y = Surr.cmap.ph.del[,3], col = "red")
+abline(h = Surr.ph.del.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.ph.del)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+#ph.phy
+plot(x = Surr.cmap.ph.phy[,1], y = Surr.cmap.ph.phy[,2], type = "l",
+     main = "Ph V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.ph.phy[,1], y = Surr.cmap.ph.phy[,3], col = "red")
+abline(h = Surr.ph.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.ph.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+#ph.chl
+
+plot(x = Surr.cmap.ph.chl[,1], y = Surr.cmap.ph.chl[,2], type = "l",
+     main = "Ph V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.ph.chl[,1], y = Surr.cmap.ph.chl,3], col = "red")
+abline(h = Surr.ph.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.ph.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+
+#CMAP INCLUDE DATA
+
+#CMAP 
+
+cmap.ph.del_phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.ph.phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.ph.chl2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+#Surrogates
+
+Surr.cmap.del_ph.phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.ph.phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.ph.phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "ph", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+
+#LIBMEAN PLOT
+
+ #PHY
+ 
+  cmap.ph.phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`ph:phy`,color="ph:phy")) +
+  geom_line(aes(y=`phy:ph`,color="phy:ph")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$phy)),lty=2)
+  
+#DEL_PHY
+
+ cmap.ph.del_phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`ph:phy`,color="ph:del_phy")) +
+  geom_line(aes(y=`phy:ph`,color="del_phy:ph")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$del_phy)),lty=2)
+ 
+ 
+#CHL
+ 
+ cmap.ph.chl2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`ph:phy`,color="ph:chl")) +
+  geom_line(aes(y=`phy:ph`,color="chl:ph")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$chl)),lty=2)
+ 
+ 
+ #Surrogate PHY
+ 
+  Surr.cmap.ph.phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`ph:phy`,color="ph:phy")) +
+  geom_line(aes(y=`phy:ph`,color="phy:ph")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$phy)),lty=2)
+  
+#Surrogate DEL_PHY
+
+ Surr.cmap.ph.del_phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`ph:phy`,color="ph:del_phy")) +
+  geom_line(aes(y=`phy:ph`,color="del_phy:ph")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$del_phy)),lty=2)
+ 
+ 
+#Surrogate CHL
+ 
+ Surr.cmap.ph.chl2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`ph:phy`,color="ph:chl")) +
+  geom_line(aes(y=`phy:ph`,color="chl:ph")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$chl)),lty=2)
+ 
+ 
+ 
+#PREDICTSTAT PLOT
+
+cmap.ph.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+cmap.ph.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+
+cmap.ph.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+#PREDICTSTAT PLOT
+
+Surr.cmap.ph.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+Surr.cmap.ph.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+
+Surr.cmap.ph.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+
+#EMBED DIMENSION 
+
+
+#EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "ph",
+               #target = "phy",lib="1 1174",pred="1 1174",
+               #tau=-7)
+
+
+#EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "ph",
+               #target = "del_phy",lib="1 1174",pred="1 1174",
+               #tau=-7)
+
+#EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "ph",
+               #target = "chl",lib="1 1174",pred="1 1174",
+               #tau=-7)
+
+
+#EmbedDimension(dataFrame = Surrogate,Tp = 0, columns = "ph",
+               #target = "phy",lib="1 1174",pred="1 1174",
+               #tau=-7)
+
+
+#EmbedDimension(dataFrame = Surrogate,Tp = 0, columns = "ph",
+               #target = "del_phy",lib="1 1174",pred="1 1174",
+               #tau=-7)
+
+#EmbedDimension(dataFrame = Surrogate,Tp = 0, columns = "ph",
+               #target = "chl",lib="1 1174",pred="1 1174",
+               #tau=-7)
+
+
+
+
+```
+
+
+
+
+##Celsius
+
+```{r}
+
+
+cmap.Celsius.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.Celsius.del_phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.Celsius.chl <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Celsius"", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.Celsius.phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.Celsius.del_phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.Celsius.chl <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Celsius"", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+# CMAP Correlations
+Celsius.phy.corr <- cor(cmap.Celsius.phy)
+Celsius.phy.corr <- Celsius.phy.corr[1, 3]
+
+Celsius.del_phy.corr <- cor(cmap.Celsius.del_phy)
+Celsius.del_phy.corr <- Celsius.del_phy.corr[1, 3]
+
+Celsius.chl.corr <- cor(cmap.Celsius.chl)
+Celsius.chl.corr <- Celsius.chl.corr[1, 3]
+
+# Surrogate Correlations
+Surr.Celsius.phy.corr <- cor(Surr.cmap.Celsius.phy)
+Surr.Celsius.phy.corr <- Surr.Celsius.phy.corr[1, 3]
+
+Surr.Celsius.del_phy.corr <- cor(Surr.cmap.Celsius.del_phy)
+Surr.Celsius.del_phy.corr <- Surr.Celsius.del_phy.corr[1, 3]
+
+Surr.Celsius.chl.corr <- cor(Surr.cmap.Celsius.chl)
+Surr.Celsius.chl.corr <- Surr.Celsius.chl.corr[1, 3]
+
+# CMAP PLOTS
+# Celsius.phy
+plot(x = cmap.Celsius.phy[,1], y = cmap.Celsius.phy[,2], type = "l",
+     main = "Celsius V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.Celsius.phy[,1], y = cmap.Celsius.phy[,3], col = "red")
+abline(h = Celsius.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.Celsius.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Celsius.del_phy
+plot(x = cmap.Celsius.del_phy[,1], y = cmap.Celsius.del_phy[,2], type = "l",
+     main = "Celsius V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.Celsius.del_phy[,1], y = cmap.Celsius.del_phy[,3], col = "red")
+abline(h = Celsius.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.Celsius.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Celsius.chl
+plot(x = cmap.Celsius.chl[,1], y = cmap.Celsius.chl[,2], type = "l",
+     main = "Celsius V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.Celsius.chl[,1], y = cmap.Celsius.chl[,3], col = "red")
+abline(h = Celsius.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.Celsius.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate PLOTS
+# Surrogate Celsius.phy
+plot(x = Surr.cmap.Celsius.phy[,1], y = Surr.cmap.Celsius.phy[,2], type = "l",
+     main = "Celsius V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.Celsius.phy[,1], y = Surr.cmap.Celsius.phy[,3], col = "red")
+abline(h = Surr.Celsius.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.Celsius.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate Celsius.del_phy
+plot(x = Surr.cmap.Celsius.del_phy[,1], y = Surr.cmap.Celsius.del_phy[,2], type = "l",
+     main = "Celsius V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.Celsius.del_phy[,1], y = Surr.cmap.Celsius.del_phy[,3], col = "red")
+abline(h = Surr.Celsius.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.Celsius.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate Celsius.chl
+plot(x = Surr.cmap.Celsius.chl[,1], y = Surr.cmap.Celsius.chl[,2], type = "l",
+     main = "Celsius V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.Celsius.chl[,1], y = Surr.cmap.Celsius.chl[,3], col = "red")
+abline(h = Surr.Celsius.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.Celsius.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# CMAP INCLUDE DATA
+# CMAP 
+cmap.Celsius.phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.Celsius.del_phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.Celsius.chl2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+# Surrogates
+Surr.cmap.Celsius.phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.Celsius.del_phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.Celsius.chl2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Celsius", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+# LIBMEAN PLOT
+# PHY
+cmap.Celsius.phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Celsius:phy`,color="Celsius:phy")) +
+  geom_line(aes(y=`phy:Celsius`,color="phy:Celsius")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Celsius,ag_df_CR$phy)),lty=2)
+  
+# DEL_PHY
+cmap.Celsius.del_phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Celsius:phy`,color="Celsius:del_phy")) +
+  geom_line(aes(y=`del_phy:Celsius`,color="del_phy:Celsius")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Celsius,ag_df_CR$del_phy)),lty=2)
+ 
+# CHL
+cmap.Celsius.chl2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Celsius:phy`,color="Celsius:chl")) +
+  geom_line(aes(y=`chl:Celsius`,color="chl:Celsius")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Celsius,ag_df_CR$chl)),lty=2)
+
+# Surrogate PHY
+Surr.cmap.Celsius.phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Celsius:phy`,color="Celsius:phy")) +
+  geom_line(aes(y=`phy:Celsius`,color="phy:Celsius")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Celsius,ag_df_CR$phy)),lty=2)
+  
+# Surrogate DEL_PHY
+Surr.cmap.Celsius.del_phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Celsius:phy`,color="Celsius:del_phy")) +
+  geom_line(aes(y=`del_phy:Celsius`,color="del_phy:Celsius")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Celsius,ag_df_CR$del_phy)),lty=2)
+ 
+# Surrogate CHL
+Surr.cmap.Celsius.chl2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Celsius:phy`,color="Celsius:chl")) +
+  geom_line(aes(y=`chl:Celsius`,color="chl:Celsius")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Celsius,ag_df_CR$chl)),lty=2)
+
+
+# PREDICTSTAT PLOT
+cmap.Celsius.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+cmap.Celsius.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+cmap.Celsius.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+# PREDICTSTAT PLOT
+Surr.cmap.Celsius.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+Surr.cmap.Celsius.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+Surr.cmap.Celsius.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+# EMBED DIMENSION
+# EmbedDimension for PHY
+EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "Celsius",
+               target = "phy", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for DEL_PHY
+EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "Celsius",
+               target = "del_phy", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for CHL
+EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "Celsius",
+               target = "chl", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for Surrogate PHY
+EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "Celsius",
+               target = "phy", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for Surrogate DEL_PHY
+EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "Celsius",
+               target = "del_phy", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for Surrogate CHL
+EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "Celsius",
+               target = "chl", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+
+```
+
+##SPCOND
+
+```{r}
+
+
+cmap.spcond.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.spcond.del_phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.spcond.chl <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "spcond"", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.spcond.phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.spcond.del_phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.spcond.chl <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+# CMAP Correlations
+spcond.phy.corr <- cor(cmap.spcond.phy)
+spcond.phy.corr <- spcond.phy.corr[1, 3]
+
+spcond.del_phy.corr <- cor(cmap.spcond.del_phy)
+spcond.del_phy.corr <- spcond.del_phy.corr[1, 3]
+
+spcond.chl.corr <- cor(cmap.spcond.chl)
+spcond.chl.corr <- spcond.chl.corr[1, 3]
+
+# Surrogate Correlations
+Surr.spcond.phy.corr <- cor(Surr.cmap.spcond.phy)
+Surr.spcond.phy.corr <- Surr.spcond.phy.corr[1, 3]
+
+Surr.spcond.del_phy.corr <- cor(Surr.cmap.spcond.del_phy)
+Surr.spcond.del_phy.corr <- Surr.spcond.del_phy.corr[1, 3]
+
+Surr.spcond.chl.corr <- cor(Surr.cmap.spcond.chl)
+Surr.spcond.chl.corr <- Surr.spcond.chl.corr[1, 3]
+
+# CMAP PLOTS
+# spcond.phy
+plot(x = cmap.spcond.phy[,1], y = cmap.spcond.phy[,2], type = "l",
+     main = "spcond V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.spcond.phy[,1], y = cmap.spcond.phy[,3], col = "red")
+abline(h = spcond.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.spcond.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# spcond.del_phy
+plot(x = cmap.spcond.del_phy[,1], y = cmap.spcond.del_phy[,2], type = "l",
+     main = "spcond V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.spcond.del_phy[,1], y = cmap.spcond.del_phy[,3], col = "red")
+abline(h = spcond.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.spcond.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# spcond.chl
+plot(x = cmap.spcond.chl[,1], y = cmap.spcond.chl[,2], type = "l",
+     main = "spcond V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.spcond.chl[,1], y = cmap.spcond.chl[,3], col = "red")
+abline(h = spcond.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.spcond.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate PLOTS
+# Surrogate spcond.phy
+plot(x = Surr.cmap.spcond.phy[,1], y = Surr.cmap.spcond.phy[,2], type = "l",
+     main = "spcond V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.spcond.phy[,1], y = Surr.cmap.spcond.phy[,3], col = "red")
+abline(h = Surr.spcond.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.spcond.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate spcond.del_phy
+plot(x = Surr.cmap.spcond.del_phy[,1], y = Surr.cmap.spcond.del_phy[,2], type = "l",
+     main = "spcond V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.spcond.del_phy[,1], y = Surr.cmap.spcond.del_phy[,3], col = "red")
+abline(h = Surr.spcond.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.spcond.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate spcond.chl
+plot(x = Surr.cmap.spcond.chl[,1], y = Surr.cmap.spcond.chl[,2], type = "l",
+     main = "spcond V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.spcond.chl[,1], y = Surr.cmap.spcond.chl[,3], col = "red")
+abline(h = Surr.spcond.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.spcond.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# CMAP INCLUDE DATA
+# CMAP 
+cmap.spcond.phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.spcond.del_phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.spcond.chl2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+# Surrogates
+Surr.cmap.spcond.phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.spcond.del_phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.spcond.chl2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "spcond", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+# LIBMEAN PLOTS
+# PHY
+cmap.spcond.phy2$LibMeans %>%
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `spcond:phy`, color = "spcond:phy")) +
+  geom_line(aes(y = `phy:spcond`, color = "phy:spcond")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$spcond, ag_df_CR$phy)), lty = 2)
+
+# DEL_PHY
+cmap.spcond.del_phy2$LibMeans %>%
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `spcond:del_phy`, color = "spcond:del_phy")) +
+  geom_line(aes(y = `del_phy:spcond`, color = "del_phy:spcond")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$spcond, ag_df_CR$del_phy)), lty = 2)
+
+# CHL
+cmap.spcond.chl2$LibMeans %>%
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `spcond:chl`, color = "spcond:chl")) +
+  geom_line(aes(y = `chl:spcond`, color = "chl:spcond")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$spcond, ag_df_CR$chl)), lty = 2)
+
+# Surrogate PHY
+Surr.cmap.spcond.phy2$LibMeans %>%
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `spcond:phy`, color = "spcond:phy")) +
+  geom_line(aes(y = `phy:spcond`, color = "phy:spcond")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$spcond, ag_df_CR$phy)), lty = 2)
+
+# Surrogate DEL_PHY
+Surr.cmap.spcond.del_phy2$LibMeans %>%
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `spcond:del_phy`, color = "spcond:del_phy")) +
+  geom_line(aes(y = `del_phy:spcond`, color = "del_phy:spcond")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$spcond, ag_df_CR$del_phy)), lty = 2)
+
+# Surrogate CHL
+Surr.cmap.spcond.chl2$LibMeans %>%
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `spcond:chl`, color = "spcond:chl")) +
+  geom_line(aes(y = `chl:spcond`, color = "chl:spcond")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$spcond, ag_df_CR$chl)), lty = 2)
+
+# PREDICTSTAT PLOTS
+cmap.spcond.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+cmap.spcond.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+cmap.spcond.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+Surr.cmap.spcond.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+Surr.cmap.spcond.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+Surr.cmap.spcond.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+  
+  # EMBED DIMENSION
+# EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "spcond", target = "phy", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "spcond", target = "del_phy", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "spcond", target = "chl", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "spcond", target = "phy", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "spcond", target = "del_phy", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "spcond", target = "chl", lib = "1 1174", pred = "1 1174", tau = -7)
+
+
+```
+
+#DO
+
+
+
+```{r}
+
+cmap.do.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "do", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.do.del_phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "do", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.spcond.chl <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "do", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.do.phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "do", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.do.del_phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "do", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.spcond.chl <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "do", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+# CMAP Correlations
+do.phy.corr <- cor(cmap.do.phy)
+do.phy.corr <- do.phy.corr[1, 3]
+
+do.del_phy.corr <- cor(cmap.do.del_phy)
+do.del_phy.corr <- do.del_phy.corr[1, 3]
+
+spcond.chl.corr <- cor(cmap.spcond.chl)
+spcond.chl.corr <- spcond.chl.corr[1, 3]
+
+# Surrogate Correlations
+Surr.do.phy.corr <- cor(Surr.cmap.do.phy)
+Surr.do.phy.corr <- Surr.do.phy.corr[1, 3]
+
+Surr.do.del_phy.corr <- cor(Surr.cmap.do.del_phy)
+Surr.do.del_phy.corr <- Surr.do.del_phy.corr[1, 3]
+
+Surr.spcond.chl.corr <- cor(Surr.cmap.spcond.chl)
+Surr.spcond.chl.corr <- Surr.spcond.chl.corr[1, 3]
+
+# CMAP PLOTS
+# do.phy
+plot(x = cmap.do.phy[,1], y = cmap.do.phy[,2], type = "l",
+     main = "DO V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.do.phy[,1], y = cmap.do.phy[,3], col = "red")
+abline(h = do.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.do.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# do.del_phy
+plot(x = cmap.do.del_phy[,1], y = cmap.do.del_phy[,2], type = "l",
+     main = "DO V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.do.del_phy[,1], y = cmap.do.del_phy[,3], col = "red")
+abline(h = do.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.do.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# spcond.chl
+plot(x = cmap.spcond.chl[,1], y = cmap.spcond.chl[,2], type = "l",
+     main = "DO V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.spcond.chl[,1], y = cmap.spcond.chl[,3], col = "red")
+abline(h = spcond.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.spcond.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate PLOTS
+# Surrogate do.phy
+plot(x = Surr.cmap.do.phy[,1], y = Surr.cmap.do.phy[,2], type = "l",
+     main = "DO V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.do.phy[,1], y = Surr.cmap.do.phy[,3], col = "red")
+abline(h = Surr.do.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.do.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate do.del_phy
+plot(x = Surr.cmap.do.del_phy[,1], y = Surr.cmap.do.del_phy[,2], type = "l",
+     main = "DO V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.do.del_phy[,1], y = Surr.cmap.do.del_phy[,3], col = "red")
+abline(h = Surr.do.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.do.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate spcond.chl
+plot(x = Surr.cmap.spcond.chl[,1], y = Surr.cmap.spcond.chl[,2], type = "l",
+     main = "DO V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.spcond.chl[,1], y = Surr.cmap.spcond.chl[,3], col = "red")
+abline(h = Surr.spcond.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.spcond.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# CMAP INCLUDE DATA
+# CMAP 
+cmap.do.phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "do", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.do.del_phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "do", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.spcond.chl2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "do", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+# Surrogates
+Surr.cmap.do.phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "do", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.do.del_phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "do", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.spcond.chl2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "do", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+# LIBMEAN PLOT
+# PHY
+cmap.do.phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`do:phy`,color="do:phy")) +
+  geom_line(aes(y=`phy:do`,color="phy:do")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$do,ag_df_CR$phy)),lty=2)
+  
+# DEL_PHY
+cmap.do.del_phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`do:phy`,color="do:del_phy")) +
+  geom_line(aes(y=`del_phy:do`,color="del_phy:do")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$do,ag_df_CR$del_phy)),lty=2)
+ 
+# CHL
+cmap.spcond.chl2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`do:phy`,color="do:chl")) +
+  geom_line(aes(y=`chl:do`,color="chl:do")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$do,ag_df_CR$chl)),lty=2)
+
+# Surrogate PHY
+Surr.cmap.do.phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`do:phy`,color="do:phy")) +
+  geom_line(aes(y=`phy:do`,color="phy:do")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$do,ag_df_CR$phy)),lty=2)
+  
+# Surrogate DEL_PHY
+Surr.cmap.do.del_phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`do:phy`,color="do:del_phy")) +
+  geom_line(aes(y=`del_phy:do`,color="del_phy:do")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$do,ag_df_CR$del_phy)),lty=2)
+ 
+# Surrogate CHL
+Surr.cmap.spcond.chl2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`do:phy`,color="do:chl")) +
+  geom_line(aes(y=`chl:do`,color="chl:do")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$do,ag_df_CR$chl)),lty=2)
+
+# PREDICTSTAT PLOT
+cmap.do.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+cmap.do.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize))
+
+
++ geom_jitter() + stat_summary(fun = median,geom="line")
+
+cmap.spcond.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+# PREDICTSTAT PLOT for Surrogate PHY
+Surr.cmap.do.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+# PREDICTSTAT PLOT for Surrogate DEL_PHY
+Surr.cmap.do.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+# PREDICTSTAT PLOT for Surrogate CHL
+Surr.cmap.spcond.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+# EMBED DIMENSION
+# EmbedDimension for PHY
+EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "do",
+               target = "phy", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for DEL_PHY
+EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "do",
+               target = "del_phy", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for CHL
+EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "do",
+               target = "chl", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for Surrogate PHY
+EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "do",
+               target = "phy", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for Surrogate DEL_PHY
+EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "do",
+               target = "del_phy", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+# EmbedDimension for Surrogate CHL
+EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "do",
+               target = "chl", lib = "1 1174", pred = "1 1174",
+               tau = -7)
+
+
+
+```
+
+
+#TURB
+
+```{r}
+
+cmap.turb.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "turb", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.turb.del_phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "turb", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.turb.chl <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "turb", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.turb.phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "turb", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.turb.del_phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "turb", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.turb.chl <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "turb", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+# CMAP
+cmap.turb.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau = -7, Tp = 0, columns = "turb", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.turb.del_phy <- CCM(dataFrame = ag_df_CR, E = 5, tau = -7, Tp = 0, columns = "turb", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.turb.chl <- CCM(dataFrame = ag_df_CR, E = 5, tau = -7, Tp = 0, columns = "turb", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+# Surrogates
+Surr.cmap.turb.phy <- CCM(dataFrame = Surrogate, E = 5, tau = -7, Tp = 0, columns = "turb", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.turb.del_phy <- CCM(dataFrame = Surrogate, E = 5, tau = -7, Tp = 0, columns = "turb", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.turb.chl <- CCM(dataFrame = Surrogate, E = 5, tau = -7, Tp = 0, columns = "turb", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+# CMAP CORRELATIONS
+turb.phy.corr <- cor(cmap.turb.phy)[1, 3]
+turb.del_phy.corr <- cor(cmap.turb.del_phy)[1, 3]
+turb.chl.corr <- cor(cmap.turb.chl)[1, 3]
+
+# Surrogate Correlations
+Surr.turb.phy.corr <- cor(Surr.cmap.turb.phy)[1, 3]
+Surr.turb.del_phy.corr <- cor(Surr.cmap.turb.del_phy)[1, 3]
+Surr.turb.chl.corr <- cor(Surr.cmap.turb.chl)[1, 3]
+
+# CMAP PLOTS
+# turb.phy
+plot(x = cmap.turb.phy[,1], y = cmap.turb.phy[,2], type = "l",
+     main = "turb V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.turb.phy[,1], y = cmap.turb.phy[,3], col = "red")
+abline(h = turb.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.turb.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# turb.del_phy
+plot(x = cmap.turb.del_phy[,1], y = cmap.turb.del_phy[,2], type = "l",
+     main = "turb V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.turb.del_phy[,1], y = cmap.turb.del_phy[,3], col = "red")
+abline(h = turb.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.turb.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# turb.chl
+plot(x = cmap.turb.chl[,1], y = cmap.turb.chl[,2], type = "l",
+     main = "turb V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.turb.chl[,1], y = cmap.turb.chl[,3], col = "red")
+abline(h = turb.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.turb.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# SURROGATE PLOTS
+# Surrogate turb.phy
+plot(x = Surr.cmap.turb.phy[,1], y = Surr.cmap.turb.phy[,2], type = "l",
+     main = "turb V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.turb.phy[,1], y = Surr.cmap.turb.phy[,3], col = "red")
+abline(h = Surr.turb.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.turb.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate turb.del_phy
+plot(x = Surr.cmap.turb.del_phy[,1], y = Surr.cmap.turb.del_phy[,2], type = "l",
+     main = "turb V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.turb.del_phy[,1], y = Surr.cmap.turb.del_phy[,3], col = "red")
+abline(h = Surr.turb.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.turb.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate turb.chl
+plot(x = Surr.cmap.turb.chl[,1], y = Surr.cmap.turb.chl[,2], type = "l",
+     main = "turb V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.turb.chl[,1], y =Surr.cmap.turb.chl[,3], col = "red")
+abline(h = Surr.turb.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.turb.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# CMAP INCLUDE DATA
+# CMAP
+cmap.turb.phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau = -7, Tp = 0, columns = "turb", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE, includeData = TRUE)
+
+cmap.turb.del_phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau = -7, Tp = 0, columns = "turb", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE, includeData = TRUE)
+
+cmap.turb.chl2 <- CCM(dataFrame = ag_df_CR, E = 5, tau = -7, Tp = 0, columns = "turb", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE, includeData = TRUE)
+
+# Surrogates
+Surr.cmap.turb.phy2 <- CCM(dataFrame = Surrogate, E = 5, tau = -7, Tp = 0, columns = "turb", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE, includeData = TRUE)
+
+Surr.cmap.turb.del_phy2 <- CCM(dataFrame = Surrogate, E = 5, tau = -7, Tp = 0, columns = "turb", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE, includeData = TRUE)
+
+Surr.cmap.turb.chl2 <- CCM(dataFrame = Surrogate, E = 5, tau = -7, Tp = 0, columns = "turb", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE, includeData = TRUE)
+
+# LIBMEAN PLOT
+# PHY
+cmap.turb.phy2$LibMeans %>% 
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `turb:phy`, color = "turb:phy")) +
+  geom_line(aes(y = `phy:turb`, color = "phy:turb")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$turb, ag_df_CR$phy)), lty = 2)
+
+# DEL_PHY
+cmap.turb.del_phy2$LibMeans %>% 
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `turb:phy`, color = "turb:del_phy")) +
+  geom_line(aes(y = `phy:turb`, color = "del_phy:turb")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$turb, ag_df_CR$del_phy)), lty = 2)
+
+# CHL
+cmap.turb.chl2$LibMeans %>% 
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `turb:phy`, color = "turb:chl")) +
+  geom_line(aes(y = `phy:turb`, color = "chl:turb")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$turb, ag_df_CR$chl)), lty = 2)
+
+# Surrogate PHY
+Surr.cmap.turb.phy2$LibMeans %>% 
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `turb:phy`, color = "turb:phy")) +
+  geom_line(aes(y = `phy:turb`, color = "phy:turb")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$turb, ag_df_CR$phy)), lty = 2)
+
+# Surrogate DEL_PHY
+Surr.cmap.turb.del_phy2$LibMeans %>% 
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `turb:phy`, color = "turb:del_phy")) +
+  geom_line(aes(y = `phy:turb`, color = "del_phy:turb")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$turb, ag_df_CR$del_phy)), lty = 2)
+
+# Surrogate CHL
+Surr.cmap.turb.chl2$LibMeans %>% 
+  ggplot(aes(x = LibSize)) +
+  geom_line(aes(y = `turb:phy`, color = "turb:chl")) +
+  geom_line(aes(y = `phy:turb`, color = "chl:turb")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$turb, ag_df_CR$chl)), lty = 2)
+
+# PREDICTSTAT PLOT
+cmap.turb.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) + 
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+cmap.turb.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) + 
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+cmap.turb.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) + 
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+# Surrogate PHY
+Surr.cmap.turb.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) + 
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+# Surrogate DEL_PHY
+Surr.cmap.turb.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) + 
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+# Surrogate CHL
+Surr.cmap.turb.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) + 
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+
+
+# PREDICTSTAT PLOTS
+cmap.turb.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+cmap.turb.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+cmap.turb.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+Surr.cmap.turb.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+Surr.cmap.turb.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+Surr.cmap.turb.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x = LibSize, y = rho, group = LibSize)) +
+  geom_jitter() + 
+  stat_summary(fun = median, geom = "line")
+
+# EMBED DIMENSION
+# Uncomment and replace the placeholder values with appropriate parameters.
+# EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "do", target = "phy", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "do", target = "del_phy", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "do", target = "chl", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "do", target = "phy", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "do", target = "del_phy", lib = "1 1174", pred = "1 1174", tau = -7)
+# EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "do", target = "chl", lib = "1 1174", pred = "1 1174", tau = -7)
+
+
+        
+        
+    
+
+```
+
+#Salinity
+
+```{r}
+
+cmap.Salinity.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.Salinity.del_phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.Salinity.chl <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.Salinity.phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.Salinity.del_phy <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.Salinity.chl <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+# CMAP Correlations
+Salinity.phy.corr <- cor(cmap.Salinity.phy)
+Salinity.phy.corr <- Salinity.phy.corr[1, 3]
+
+Salinity.del_phy.corr <- cor(cmap.Salinity.del_phy)
+Salinity.del_phy.corr <- Salinity.del_phy.corr[1, 3]
+
+Salinity.chl.corr <- cor(cmap.Salinity.chl)
+Salinity.chl.corr <- Salinity.chl.corr[1, 3]
+
+# Surrogate Correlations
+Surr.Salinity.phy.corr <- cor(Surr.cmap.Salinity.phy)
+Surr.Salinity.phy.corr <- Surr.Salinity.phy.corr[1, 3]
+
+Surr.Salinity.del_phy.corr <- cor(Surr.cmap.Salinity.del_phy)
+Surr.Salinity.del_phy.corr <- Surr.Salinity.del_phy.corr[1, 3]
+
+Surr.Salinity.chl.corr <- cor(Surr.cmap.Salinity.chl)
+Surr.Salinity.chl.corr <- Surr.Salinity.chl.corr[1, 3]
+
+# CMAP PLOTS
+# Salinity.phy
+plot(x = cmap.Salinity.phy[,1], y = cmap.Salinity.phy[,2], type = "l",
+     main = "Salinity V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.Salinity.phy[,1], y = cmap.Salinity.phy[,3], col = "red")
+abline(h = Salinity.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.Salinity.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Salinity.del_phy
+plot(x = cmap.Salinity.del_phy[,1], y = cmap.Salinity.del_phy[,2], type = "l",
+     main = "Salinity V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.Salinity.del_phy[,1], y = cmap.Salinity.del_phy[,3], col = "red")
+abline(h = Salinity.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.Salinity.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Salinity.chl
+plot(x = cmap.Salinity.chl[,1], y = cmap.Salinity.chl[,2], type = "l",
+     main = "Salinity V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = cmap.Salinity.chl[,1], y = cmap.Salinity.chl[,3], col = "red")
+abline(h = Salinity.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.Salinity.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate PLOTS
+# Surrogate Salinity.phy
+plot(x = Surr.cmap.Salinity.phy[,1], y = Surr.cmap.Salinity.phy[,2], type = "l",
+     main = "Salinity V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.Salinity.phy[,1], y = Surr.cmap.Salinity.phy[,3], col = "red")
+abline(h = Surr.Salinity.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.Salinity.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate Salinity.del_phy
+plot(x = Surr.cmap.Salinity.del_phy[,1], y = Surr.cmap.Salinity.del_phy[,2], type = "l",
+     main = "Salinity V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.Salinity.del_phy[,1], y = Surr.cmap.Salinity.del_phy[,3], col = "red")
+abline(h = Surr.Salinity.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.Salinity.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate Salinity.chl
+plot(x = Surr.cmap.Salinity.chl[,1], y = Surr.cmap.Salinity.chl[,2], type = "l",
+     main = "Salinity V. chl ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
+lines(x = Surr.cmap.Salinity.chl[,1], y = Surr.cmap.Salinity.chl[,3], col = "red")
+abline(h = Surr.Salinity.chl.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.Salinity.chl)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# CMAP INCLUDE DATA
+# CMAP 
+cmap.Salinity.phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.Salinity.del_phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+cmap.Salinity.chl2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+# Surrogates
+Surr.cmap.Salinity.phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.Salinity.del_phy2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+Surr.cmap.Salinity.chl2 <- CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "Salinity", target = "chl", libSizes = "20 200 20", sample = 100, showPlot = TRUE,includeData = TRUE)
+
+# LIBMEAN PLOT
+# PHY
+cmap.Salinity.phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Salinity:phy`,color="Salinity:phy")) +
+  geom_line(aes(y=`phy:Salinity`,color="phy:Salinity")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Salinity,ag_df_CR$phy)),lty=2)
+  
+# DEL_PHY
+cmap.Salinity.del_phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Salinity:phy`,color="Salinity:del_phy")) +
+  geom_line(aes(y=`del_phy:Salinity`,color="del_phy:Salinity")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Salinity,ag_df_CR$del_phy)),lty=2)
+ 
+# CHL
+cmap.Salinity.chl2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Salinity:phy`,color="Salinity:chl")) +
+  geom_line(aes(y=`chl:Salinity`,color="chl:Salinity")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Salinity,ag_df_CR$chl)),lty=2)
+
+# Surrogate PHY
+Surr.cmap.Salinity.phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Salinity:phy`,color="Salinity:phy")) +
+  geom_line(aes(y=`phy:Salinity`,color="phy:Salinity")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Salinity,ag_df_CR$phy)),lty=2)
+  
+# Surrogate DEL_PHY
+Surr.cmap.Salinity.del_phy2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Salinity:phy`,color="Salinity:del_phy")) +
+  geom_line(aes(y=`del_phy:Salinity`,color="del_phy:Salinity")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Salinity,ag_df_CR$del_phy)),lty=2)
+ 
+# Surrogate CHL
+Surr.cmap.Salinity.chl2$LibMeans %>% 
+  ggplot(aes(x=LibSize)) +
+  geom_line(aes(y=`Salinity:phy`,color="Salinity:chl")) +
+  geom_line(aes(y=`chl:Salinity`,color="chl:Salinity")) +
+  geom_hline(aes(yintercept = cor(ag_df_CR$Salinity,ag_df_CR$chl)),lty=2)
+
+# PREDICTSTAT PLOT
+cmap.Salinity.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+cmap.Salinity.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+cmap.Salinity.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+# Surrogate PREDICTSTAT PLOT
+Surr.cmap.Salinity.phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+Surr.cmap.Salinity.del_phy2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+Surr.cmap.Salinity.chl2$CCM1_PredictStat %>%
+  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
+  geom_jitter() + stat_summary(fun = median,geom="line")
+
+# EMBED DIMENSION
+
+# EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "Salinity", target = "phy",lib="1 1174",pred="1 1174",tau=-7)
+
+# EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "Salinity", target = "del_phy",lib="1 1174",pred="1 1174",tau=-7)
+
+# EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "Salinity", target = "chl",lib="1 1174",pred="1 1174",tau=-7)
+
+# EmbedDimension(dataFrame = Surrogate,Tp = 0, columns = "Salinity", target = "phy",lib="1 1174",pred="1 1174",tau=-7)
+
+# EmbedDimension(dataFrame = Surrogate,Tp = 0, columns = "Salinity", target = "del_phy",lib="1 1174",pred="1 1174",tau=-7)
+
+# EmbedDimension(dataFrame = Surrogate,Tp = 0, columns = "Salinity", target = "chl",lib="1 1174",pred="1 1174",tau=-7)
+
+
+
+
+
+
+```
+
+
+#CHL, PHY DEL_PHY
+
+```{r}
+
+cmap.chl.phy <-CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "chl", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.chl.del_phy <-CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "chl", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+cmap.phy.del_phy <-CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "phy", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.chl.phy <-CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "chl", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr,cmap.chl.del_phy <-CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "chl", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+Surr.cmap.phy.del_phy <-CCM(dataFrame = Surrogate, E = 5, tau=-7, Tp = 0, columns = "phy", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
+
+# CMAP Correlations
+Celsius.phy.corr <- cor(cmap.Celsius.phy)
+Celsius.phy.corr <- Celsius.phy.corr[1, 3]
+
+chl.phy.corr <- cor(cmap.chl.phy)
+chl.phy.corr <- chl.phy.corr[1, 3]
+
+chl.del_phy.corr <- cor(cmap.chl.del_phy)
+chl.del_phy.corr <- chl.del_phy.corr[1, 3]
+
+phy.del_phy.corr <- cor(cmap.phy.del_phy)
+phy.del_phy.corr <- phy.del_phy.corr[1, 3]
+
+# Surrogate Correlations
+Surr.chl.phy.corr <- cor(Surr.cmap.chl.phy)
+Surr.chl.phy.corr <- Surr.chl.phy.corr[1, 3]
+
+Surr.chl.del_phy.corr <- cor(Surr.cmap.chl.del_phy)
+Surr.chl.del_phy.corr <- Surr.chl.del_phy.corr[1, 3]
+
+Surr.phy.del_phy.corr <- cor(Surr.cmap.phy.del_phy)
+Surr.phy.del_phy.corr <- Surr.phy.del_phy.corr[1, 3]
+
+# CMAP Plots
+# Celsius.phy
+plot(x = cmap.Celsius.phy[,1], y = cmap.Celsius.phy[,2], type = "l",
+     main = "Celsius V. phy", xlab = "LibSize", ylab = "Rho", col = "blue", ylim = c(0, 1))
+lines(x = cmap.Celsius.phy[,1], y = cmap.Celsius.phy[,3], col = "red")
+abline(h = Celsius.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.Celsius.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# chl.phy
+plot(x = cmap.chl.phy[,1], y = cmap.chl.phy[,2], type = "l",
+     main = "chl V. phy", xlab = "LibSize", ylab = "Rho", col = "blue", ylim = c(0, 1))
+lines(x = cmap.chl.phy[,1], y = cmap.chl.phy[,3], col = "red")
+abline(h = chl.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.chl.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# chl.del_phy
+plot(x = cmap.chl.del_phy[,1], y = cmap.chl.del_phy[,2], type = "l",
+     main = "chl V. del_phy", xlab = "LibSize", ylab = "Rho", col = "blue", ylim = c(0, 1))
+lines(x = cmap.chl.del_phy[,1], y = cmap.chl.del_phy[,3], col = "red")
+abline(h = chl.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.chl.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# phy.del_phy
+plot(x = cmap.phy.del_phy[,1], y = cmap.phy.del_phy[,2], type = "l",
+     main = "phy V. del_phy", xlab = "LibSize", ylab = "Rho", col = "blue", ylim = c(0, 1))
+lines(x = cmap.phy.del_phy[,1], y = cmap.phy.del_phy[,3], col = "red")
+abline(h = phy.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(cmap.phy.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# Surrogate Plots
+# chl.phy
+plot(x = Surr.cmap.chl.phy[,1], y = Surr.cmap.chl.phy[,2], type = "l",
+     main = "chl V. phy (Surrogate)", xlab = "LibSize", ylab = "Rho", col = "blue", ylim = c(0, 1))
+lines(x = Surr.cmap.chl.phy[,1], y = Surr.cmap.chl.phy[,3], col = "red")
+abline(h = Surr.chl.phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.chl.phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# chl.del_phy
+plot(x = Surr.cmap.chl.del_phy[,1], y = Surr.cmap.chl.del_phy[,2], type = "l",
+     main = "chl V. del_phy (Surrogate)", xlab = "LibSize", ylab = "Rho", col = "blue", ylim = c(0, 1))
+lines(x = Surr.cmap.chl.del_phy[,1], y = Surr.cmap.chl.del_phy[,3], col = "red")
+abline(h = Surr.chl.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.chl.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+# phy.del_phy
+plot(x = Surr.cmap.phy.del_phy[,1], y = Surr.cmap.phy.del_phy[,2], type = "l",
+     main = "phy V. del_phy (Surrogate)", xlab = "LibSize", ylab = "Rho", col = "blue", ylim = c(0, 1))
+lines(x = Surr.cmap.phy.del_phy[,1], y = Surr.cmap.phy.del_phy[,3], col = "red")
+abline(h = Surr.phy.del_phy.corr, col = "green", lty = 2)
+legend("topright", legend = c(colnames(Surr.cmap.phy.del_phy)[2:3], "Correlation"), 
+       col = c("blue", "red", "green"), lty = c(1, 1, 2))
+
+#EMBED DIMENSION 
+
+#EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "Celsius",
+               #target = "phy", lib = "1 1174", pred = "1 1174",
+               #tau = -7)
+
+#EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "chl",
+               #target = "phy", lib = "1 1174", pred = "1 1174",
+               #tau = -7)
+
+#EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "chl",
+               #target = "del_phy", lib = "1 1174", pred = "1 1174",
+               #tau = -7)
+
+#EmbedDimension(dataFrame = ag_df_CR, Tp = 0, columns = "phy",
+               #target = "del_phy", lib = "1 1174", pred = "1 1174",
+               #tau = -7)
+
+#EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "chl",
+               #target = "phy", lib = "1 1174", pred = "1 1174",
+               #tau = -7)
+
+#EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "chl",
+               #target = "del_phy", lib = "1 1174", pred = "1 1174",
+               #tau = -7)
+
+#EmbedDimension(dataFrame = Surrogate, Tp = 0, columns = "phy",
+               #target = "del_phy", lib = "1 1174", pred = "1 1174",
+               #tau = -7)
+
+
+```
+
+
+#CCM CAMCSO
+
+Need to use the same data?
+```{r}
+
+cmap <- CCM(dataFrame = All, E = 4, Tp = 0, columns = "MG", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = All, E = 4, Tp = 0, columns = "MG", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+
+#CCM MWRA Non-CSO
+
+***CR_bacteria***
+
+
+#Enteroccus 
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#E_coli 
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+***CR_Secchi***
+
+
+
+#Total Suspended Solids (mg/L)
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+?
+
+```
+
+***CR_Nutrients ***
+
+#Ammonium (uM)
+
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#"Nitrate+nitrite (uM)"
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#Phosphate (uM)   
+
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+#Total phosphorus (uM)
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+```
+
+
 
 ###CAMCSO
 
@@ -746,7 +3478,7 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation"
 
 ```
 
-#HourlyPressureChange
+#HourlyPressureChange #SKIP
 
 ```{r}
 
@@ -756,7 +3488,7 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureChange
 
 ```
 
-#HourlyPressureTendency
+#HourlyPressureTendency #SKIP
 
 ```{r}
 
@@ -778,7 +3510,7 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = " HourlyRelativeHumid
 ```
 
 
-#HourlySeaLevelPressure
+#HourlySeaLevelPressure #SKIP 
 ```{r}
 
 cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlySeaLevelPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
@@ -798,7 +3530,8 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressur
 ```
 
 
-#HourlyVisibility
+#HourlyVisibility keep bc effect incident radiation 
+
 ```{r}
 
 cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
@@ -807,7 +3540,8 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", t
 
 ```
 
-#HourlyWindDirection
+#HourlyWindDirection - could be matter but direction of wind may not tell how wind is pushing around in charles around. Dan Li. Andy? 
+
 ```{r}
 
 cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
@@ -826,7 +3560,7 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed"
 
 ```
 
-#HourlyWindSpeed
+#HourlyWindSpeed - synioptic variable 
 
 ```{r}
 
@@ -837,353 +3571,7 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", ta
 ```
 
 
-CCM LibSizes Explained
-- CCM is wraps a bunch of straps for doing cross map prediction for subsets of the data
-- result is plotted is Cross Map Skill as amount of data used (L library size) 
-                  - number of attractor points 
 
-- expect quasi logistic saturation, log spaced 
-
-
-libSizes - 20 200  10 sequence of libsizes to test, x values in CCM curve
-Sample - 
-this is where you do bootstrap, subsets of data ex: 100, do 100 n number of random resamples
-
-#SURROGATE
-
-```{r}
-
-ag_df_CR <- na.omit(ag_df_CR)
-
-# Convert ag_df_CR to a time series object if necessary
-Surrogate_phy <- as.ts(ag_df_CR$phy)
-Surrogate_chl <- as.ts(ag_df_CR$chl)
-Surrogate_ph <- as.ts(ag_df_CR$ph)
-Surrogate_Celsius <- as.ts(ag_df_CR$Celsius)
-Surrogate_spcond <- as.ts(ag_df_CR$spcond)
-Surrogate_do <- as.ts(ag_df_CR$do)
-Surrogate_turb <- as.ts(ag_df_CR$turb)
-Surrogate_Salinity <- as.ts(ag_df_CR$Salinity)
-Surrogate_del_phy <- as.ts(ag_df_CR$Salinity)
-
-#Surrogate
-
-Surrogate_phy <- SurrogateData(Surrogate_phy, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
-Surrogate_chl <- SurrogateData(Surrogate_chl, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
-Surrogate_ph <- SurrogateData(Surrogate_ph, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
-Surrogate_Celsius <- SurrogateData(Surrogate_Celsius, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
-Surrogate_spcond <- SurrogateData(Surrogate_spcond, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
-Surrogate_do <- SurrogateData(Surrogate_do, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
-Surrogate_turb <- SurrogateData(Surrogate_turb, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
-Surrogate_Salinity <- SurrogateData(Surrogate_Salinity, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
-Surrogate_del_phy <- SurrogateData(Surrogate_del_phy, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
-
-
-Surrogate <- bind_rows(
-  CR2015,
-  CR2016,
-  CR2017, 
-  CR2018,
-  CR2019,
-  CR2020,
-  CR2021,
-  CR2022,
-  CR2023
-)
-
-
-
-
-```
-
-ts <- the original time series
-method	<- which algorithm to use to generate surrogate data
-num_surr <- the number of null surrogates to generate
-T_period <- the period of seasonality for seasonal surrogates (ignored for other methods)
-alpha	<- additive noise factor: N(0,alpha)
-
-
-###CCM EPA BUOY
-```{r}
-ag_df_CR <- na.omit(ag_df_CR)
-```
-
-##PH
-
-#CMAP
-
-
-```{r}
-
-ag_df_CR <- na.omit(ag_df_CR)
-
-cmap.ph.del <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
-
-#includeData = TRUE removed 
-
-cmap.ph.phy <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 200 20", sample = 100, showPlot = TRUE)
-
-```
-
-#Convert CMAP Skeleton
-```{r}
-
-ph.del.corr <- cor(cmap.ph.del)
-ph.del.corr <- ph.del.corr[1, 3]
-
-ph.phy.corr <- cor(cmap.ph.phy)
-ph.phy.corr <- ph.phy.corr[1, 3]
-
-#ph.del
-plot(x = cmap.ph.del[,1], y = cmap.ph.del[,2], type = "l",
-     main = "Ph V. del_phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
-lines(x = cmap.ph.del[,1], y = cmap.ph.del[,3], col = "red")
-abline(h = ph.del.corr, col = "green", lty = 2)
-legend("topright", legend = c(colnames(cmap.ph.del)[2:3], "Correlation"), 
-       col = c("blue", "red", "green"), lty = c(1, 1, 2))
-#ph.phy
-plot(x = cmap.ph.phy[,1], y = cmap.ph.phy[,2], type = "l",
-     main = "Ph V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
-lines(x = cmap.ph.phy[,1], y = cmap.ph.phy[,3], col = "red")
-abline(h = ph.phy.corr, col = "green", lty = 2)
-legend("topright", legend = c(colnames(cmap.ph.phy)[2:3], "Correlation"), 
-       col = c("blue", "red", "green"), lty = c(1, 1, 2))
-
-
-```
-
-
-```{r}
-#PLOT POINTS 
- ag_df_CR %>% ggplot(aes(x=ph,y=phy)) + geom_point()
-
-cmap.ph.del2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "del_phy", libSizes = "20 337 20", sample = 100, showPlot = TRUE)
-
-cmap.ph.phy2 <- CCM(dataFrame = ag_df_CR, E = 5, tau=-7, Tp = 0, columns = "ph", target = "phy", libSizes = "20 337 20", sample = 100, showPlot = TRUE, includeData = TRUE)
-
- cmap.ph.phy2$LibMeans %>% 
-  ggplot(aes(x=LibSize)) +
-  geom_line(aes(y=`ph:phy`,color="ph:phy")) +
-  geom_line(aes(y=`phy:ph`,color="phy:ph")) +
-  geom_hline(aes(yintercept = cor(ag_df_CR$ph,ag_df_CR$phy)),lty=2)
-
-cmap.ph.phy2$CCM1_PredictStat %>%
-  ggplot(aes(x=LibSize,y=rho,group=LibSize)) + 
-  geom_jitter() + stat_summary(fun = median,geom="line")
-
-EmbedDimension(dataFrame = ag_df_CR,Tp = 0, columns = "ph",
-               target = "phy",lib="1 1174",pred="1 1174",
-               tau=-7)
-
-```
-
-Mean trendline + median Trendline
-https://www.r-bloggers.com/2023/11/navigating-quantile-regression-with-r-a-comprehensive-guide/
-
-
-##Celsius
-
-```{r}
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "Celsius", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "Celsius", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-```
-
-##SPCOND
-
-```{r}
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "spcond", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "spcond", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-```
-
-#DO
-
-
-
-```{r}
-cmap.do.phy <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-#abline(h = corr_matrix["do", "phy"], col = "black", lty = 2)
-
-do.phy.corr <- cor(cmap.do.phy)
-do.phy.corr <- do.phy.corr[1, 3]
-
-
-#ph.del
-plot(x = cmap.do.phy[,1], y = cmap.do.phy[,2], type = "l",
-     main = "do V. phy ", xlab = "LibSize", ylab = "Rho", col = "blue",  ylim = c(0, 1))
-lines(x = cmap.do.phy[,1], y = cmap.do.phy[,3], col = "red")
-abline(h = do.phy.corr, col = "green", lty = 2)
-legend("topright", legend = c(colnames(cmap.do.phy)[2:3], "Correlation"), 
-       col = c("blue", "red", "green"), lty = c(1, 1, 2))
-
-
-```
-
-
-
-
-
-```{r}
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "del_phy", libSizes = "20 200 10 ", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "do", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-```
-
-
-#TURB
-
-```{r}
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "turb", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE) 
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "turb", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "turb", target = "chl", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
-
-
-
-```
-
-#CHL, PHY DEL_PHY
-
-```{r}
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "chl", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE) 
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "chl", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "phy", target = "del_phy", libSizes = "20 200 10", sample = 10, showPlot = TRUE)
-
-
-
-```
-
-
-#Salinity
-
-```{r}
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0 columns = "Salinity", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0 columns = "Salinity", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-```
-
-
-#CCM CAMCSO
-
-Need to use the same data?
-```{r}
-
-cmap <- CCM(dataFrame = All, E = 4, Tp = 0, columns = "MG", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = All, E = 4, Tp = 0, columns = "MG", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-
-```
-
-
-#CCM MWRA Non-CSO
-
-***CR_bacteria***
-
-
-#Enteroccus 
-```{r}
-
-
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-
-```
-
-#E_coli 
-
-```{r}
-
-
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-
-```
-
-***CR_Secchi***
-
-
-
-#Total Suspended Solids (mg/L)
-
-```{r}
-
-
-cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-
-```
-
-***CR_Nutrients ***
-
-#Ammonium (uM)
-
-
-```{r}
-
-
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-
-```
-
-#"Nitrate+nitrite (uM)"
-
-```{r}
-
-
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-
-```
-
-#Phosphate (uM)   
-
-```{r}
-
-
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-
-```
-
-#Total phosphorus (uM)
-```{r}
-
-
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-
-```
 ccm uses y to predict x, if true, x can affect y 
 ccm wraps (Simplex target = x, columns = y)
 
@@ -1213,17 +3601,182 @@ df_example %>% ggplot(aes(x=Date,y=sin_season)) + geom_line()
 
 ```
 
+#FIND CRITICAL VALUES 
 
-https://rdrr.io/cran/rEDM/man/SurrogateData.html#google_vignette
-https://www.r-bloggers.com/2023/11/navigating-quantile-regression-with-r-a-comprehensive-guide/
-Mean trendline + median Trendline
-Plot Points
+```{r}
+critical.r <- function( n, alpha = .05 ) {
+  df <- n - 2
+  critical.t <- qt(alpha/2, df, lower.tail = F)
+  critical.r <- sqrt( (critical.t^2) / ( (critical.t^2) + df ) )
+  return(critical.r)
+}
+# Example usage: Critical correlation coefficient at sample size of n = 100
+critical.r( 100 )
+```
 
-mean_y <- mean(data$y)
-ggplot(data, aes(x = x, y = y)) +
-  geom_point() +
-  geom_hline(yintercept = mean_y, color = "red", linetype = "dashed") +
-  labs(title = "Mean Trendline Example", x = "X-axis", y = "Y-axis")
-critical values of pearson's correlation coefficent 
+#Multiview 
+Here, we demonstrate this idea using the Multiview() function with the 3-species data used above.
+Multiview() operates by constructing all possible embeddings of dimension E with lag up to E-1. These
+embeddings are ranked by forecast skill (rho) over the lib portion of the data. The individual forecasts for
+the top multiview embeddings are then averaged together. If multiview is not specified it is set to sqrt(C)
+where C is the number of E-dimensional combinations created from all data vectors.
 
-ggplot geomplot 
+
+```{r}
+
+Multiview = Multiview(dataFrame = ag_df_CR, lib = "1 1174", pred = "1 1174", E = 2,D=3,
+columns = "chl ph Celsius spcond do turb Salinity", target = "phy")
+Multiview()
+test 
+E = 2
+D = 2
+E = 3
+E =5
+would get higher ceilling , exogenous 
+additional analyiss fills in mechanistcally 
+#at least E of 2, after E > 5 com sci problem
+
+
+#E is amounts of lags. univar time lags
+#D is dimension of individual multivariate models, number of vars we're taking at a time. axis to embed. 
+go oup to 2022, lib = pred 
+
+#coluumns * E = 14 
+#dimension = 5
+
+```
+View lists the various combinations of data embedding vectors used for the forecasts along with their prediction statistics.
+Predictions returns the final averaged multiview projections.
+
+
+```{r}
+
+ag_df_CR <- na.omit(ag_df_CR)
+
+
+results_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 1048", pred = "1 1048", E = 2, D=3,
+columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+
+
+
+
+```
+
+
+```{r}
+Multiview2 = Multiview(dataFrame = ag_df_CR, lib = "1 1048", pred = "1 1048", E = 3, D= 5,
+columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+Multiview2()
+
+```
+
+
+Multiview()
+test 
+E = 2
+D = 2
+E = 3
+E =5
+would get higher ceilling , exogenous 
+additional analyiss fills in mechanistcally 
+#at least E of 2, after E > 5 com sci problem
+
+
+#E is amounts of lags. univar time lags
+#D is dimension of individual multivariate models, number of vars we're taking at a time. axis to embed. 
+go oup to 2022, lib = pred 
+
+#coluumns * E = 14 
+#dimension = 5
+
+
+```{r}
+plots.dir.path <- list.files(tempdir("C:\\Users\\mfman\\AppData\\Local\\Temp\\RtmpaE80Ug"), pattern="rs-graphics", full.names = TRUE); 
+plots.png.paths <- list.files(plots.dir.path, pattern=".png", full.names = TRUE)
+```
+
+
+```{r}
+file.copy(from=plots.png.paths, to="C:/Users/mfman/OneDrive/Desktop/HAB_PLOTS")
+
+```
+
+```{r}
+#mutlliview
+
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(ag_df_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+
+# Check if the file exists
+if(file.exists("Mutliview_e2d3.rds")) {
+  # Load the file if it exists
+  Multi_E2_D3 <- readRDS("Mutliview_e2d3.rds")
+} else {
+  # If the file does not exist, create Multi_E2_D3
+  Multi_E2_D3 <- Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
+                            columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+  # Save Multi_E2_D3 to file
+  saveRDS(Multi_E2_D3, "Mutliview_e2d3.rds")
+}
+
+
+# Check if the file exists
+if(file.exists("Mutliview_E2D5.rds")) {
+  # Load the file if it exists
+  Multi_E3_D5 <- readRDS("Mutliview_E2D5.rds")
+} else {
+  # If the file does not exist, create Multi_E2_D3
+  Multi_E3_D5 <- Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
+                            columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+  # Save Multi_E2_D3 to file
+  saveRDS(Multi_E2_D3, "Mutliview_E2D5.rds")
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Multi_E2_D3 <- "Mutliview_e2d3.rds"
+if(!file.exists("Multi_E2_D3.rds")){
+results_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
+columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy") <<
+    results_1 <- Blah Blah
+    save(Multi_E2_D3, file = "Multi_E2_D3.rds")
+} else{
+  load(Multi_E2_D3)
+}
+
+Multi_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
+columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+
+if (file.exists("CR2023.rds")) {
+  # If it's saved locally, load the data
+  CR2023 <- readRDS("CR2023.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1sMKGzW71qErP8DIrxWDvlgqN3o9MrprLjjAFGsOie3I/edit?usp=sharing')
+  saveRDS(CR2023, "CR2023.rds")
+  
+  
+  
+  
+}
+```
+

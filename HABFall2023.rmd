@@ -79,16 +79,21 @@ df_CR <- df_CR %>%
 
 ```{r}
 
+
+df_CR$spcond = df_CR$spcond * 0.1 #mS to S/m
+
 df_CR$Salinity <- 
 
   swSCTp(
   df_CR$spcond,
 df_CR$Celsius,
   pressure = rep(10.1325,NROW(df_CR)),
-  # "mS/cm",
+  # "S/cm",
 "",
   eos = getOption("oceEOS", default = "gsw")
 )
+
+df_CR$Salinity
 
 ```
 
@@ -136,6 +141,7 @@ df_CR %>%
   ggtitle("Phycocanin 2021") +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(x = "Month", y = "Phycocanin (RFU)")
+
 ```
 
 #add rows w/ missing NA values
@@ -164,45 +170,12 @@ df_CR %>% group_by(date,hour) %>%
 
 ```
 
-### Plot \> 2021 EPA Buoy Vars
 
-```{r}
-
-
-df_CR %>%
-  group_by(date, hour) %>%
-  filter(year(date) >= 2021) %>%
-  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity"), mean), .groups = "keep") %>%
-  mutate(date = date + hours(hour)) %>%
-  ggplot(aes(x = date)) +
-  geom_path(aes(y = chl, color = "Chlorophyll (RFU)")) +
-  geom_path(aes(y = phy, color = "Phycocanin (RFU)")) +
-  geom_path(aes(y = ph, color = "pH")) +
-  geom_path(aes(y = Celsius, color = "Temperature (Celsius)")) +
-  geom_path(aes(y = spcond, color = "Specific Conductance Ratio (mS/cm)")) +
-  geom_path(aes(y = do, color = "Dissolved Oxygen (mg/L)")) +
-  geom_path(aes(y = turb, color = "Turbidity (FNU)")) +
-  geom_path(aes(y = Salinity, color = "Salinity (ppm)")) +
-  scale_color_manual(
-    values = c("Chlorophyll (RFU)" = "green",
-               "Phycocanin (RFU)" = "orange",
-               "pH" = "brown",
-               "Temperature (Celsius)" = "red",
-               "Specific Conductance Ratio (mS/cm)" = "pink",
-               "Dissolved Oxygen (mg/L)" = "yellow",
-               "Turbidity (FNU)" = "purple",  # Removed the extra space here
-               "Salinity (ppm)" = "blue"),
-    name = "Color"
-  ) + 
-  labs(x = "Dates", y = "Units") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle(" < 2021 All EPA Buoy Variables")
-
-```
 
 ### Plot All EPA Buoy Vars All Time
 
 ```{r}
+
 df_CR %>%
   group_by(date, hour) %>%
   summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity"), mean), .groups = "keep") %>%
@@ -230,6 +203,8 @@ df_CR %>%
       labs(x = "Dates", y = "Units") +
 theme(plot.title = element_text(hjust = 0.5)) +
   ggtitle("All EPA Buoy Vars")
+
+
 ```
 
 
@@ -248,13 +223,12 @@ print(cor_data)
 corrplot(cor_data, method="number")
 corrplot(cor_data, method="circle")
 
-
-
 rcorr(as.matrix(numericag[-1,-1]), type = c("pearson"))
 
 
 
 ```
+
 ###ACF Non-Aggregated
 
 ```{r}
@@ -572,6 +546,7 @@ morndf_CR <- df_CR %>%
 morndf_CR <-morndf_CR %>%
    group_by(date) %>%
   summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
+
 ```
 
 
@@ -1679,11 +1654,11 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 2, columns = "chl", target = "turb
 
 
 
-
-
-
 #tp - 2012 paper 
 ```
+
+
+
 
 # EDM Mulit-variate Analysis
 
