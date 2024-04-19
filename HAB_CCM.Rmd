@@ -16,6 +16,7 @@ library(rEDM)
 library(ggplot2)
 library(zoo)
 library(quantreg)
+library(lubridate)
 
 ```
 
@@ -178,8 +179,8 @@ df_CR$Celsius,
 ag_df_CR <-df_CR %>%
    group_by(date) %>%
   summarise(chl=mean(chl, na.rm = TRUE), phy=mean(phy, na.rm = TRUE), ph=mean(ph, na.rm = TRUE), Celsius=mean(Celsius,na.rm = TRUE), spcond=mean(spcond,na.rm = TRUE), do=mean(do,na.rm = TRUE), turb=mean(turb,na.rm = TRUE), Salinity = mean(Salinity,na.rm = TRUE))
-
 ag_df_CR <- na.omit(ag_df_CR)
+
 
 plot(ag_df_CR$date,ag_df_CR$Salinity)
 ```
@@ -3582,14 +3583,13 @@ Simplex ( Embedded = True, columns = c("x1, "x2))
 set CCM samples to 10 to see result 
 
 
-
+#Seasonal Cycle - Multivariate 
 ```{r}
 #1 is get the tau/Tp sorted
 
 
-But when we get to multivariate, can include the seasonal cycle:
-
 yday(as.Date("2024-03-01"))
+
 df_example <- data.frame(seq(as.Date("2010-01-01"),by=1,length.out=3000))
 df_example <- data.frame(Date=seq(as.Date("2010-01-01"),by=1,length.out=3000))
 df_example <- df_example %>% mutate(yday = yday(Date))
@@ -3652,7 +3652,7 @@ Predictions returns the final averaged multiview projections.
 ```{r}
 
 ag_df_CR <- na.omit(ag_df_CR)
-
+ag_df_CR$date <- as.numeric(ag_df_CR$date)
 
 results_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 1048", pred = "1 1048", E = 2, D=3,
 columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
@@ -3702,7 +3702,7 @@ file.copy(from=plots.png.paths, to="C:/Users/mfman/OneDrive/Desktop/HAB_PLOTS")
 ```
 
 ```{r}
-#mutlliview
+#mutltiview
 
 
 
@@ -3713,15 +3713,20 @@ print(first_row_2023)
 
 
 # Check if the file exists
-if(file.exists("Mutliview_e2d3.rds")) {
+if(file.exists("Multi_E2_D3.rds")) {
   # Load the file if it exists
-  Multi_E2_D3 <- readRDS("Mutliview_e2d3.rds")
+  Multi_E2_D3 <- readRDS("Multi_E2_D3.rds")
 } else {
   # If the file does not exist, create Multi_E2_D3
-  Multi_E2_D3 <- Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
+  Multi_E2_D3 <- Multiview(dataFrame = ag_df_CR, 
+                           lib = "1 1014", pred = "1 1014", # in-sample
+                           # lib = "1 1014", pred = "1015 1189", # out-sample
+                           trainLib = TRUE,
+                           E = 2, D=3,
+                           tau = -7, Tp = 7,
                             columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
   # Save Multi_E2_D3 to file
-  saveRDS(Multi_E2_D3, "Mutliview_e2d3.rds")
+  saveRDS(Multi_E2_D3, "Multi_E2_D3.rds")
 }
 
 
@@ -3736,20 +3741,6 @@ if(file.exists("Mutliview_E2D5.rds")) {
   # Save Multi_E2_D3 to file
   saveRDS(Multi_E2_D3, "Mutliview_E2D5.rds")
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3773,9 +3764,6 @@ if (file.exists("CR2023.rds")) {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1sMKGzW71qErP8DIrxWDvlgqN3o9MrprLjjAFGsOie3I/edit?usp=sharing')
   saveRDS(CR2023, "CR2023.rds")
-  
-  
-  
   
 }
 ```
