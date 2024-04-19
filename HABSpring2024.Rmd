@@ -2,12 +2,107 @@
 title: "HAB_Spring2024"
 output: html_document
 date: "2024-04-03"
+editor_options: 
+  chunk_output_type: console
 ---
 
-#CR BUOY
 
 
 ```{r}
+library(dplyr)
+
+
+```
+
+
+
+
+```{r}
+# Assuming 'ag_df_CR' is your data frame
+
+# Create an empty list to store the results
+lm_list <- list()
+
+# List of variables to include in the linear models
+vars <- c("ph", "Celsius", "spcond", "do", "turb", "Salinity")
+
+# Iterate over each variable
+for (var in vars) {
+  # Create the formula for the linear model
+  formula_chl <- paste("chl ~", var)
+  formula_phy <- paste("phy ~", var)
+  
+  # Fit the linear model for 'chl'
+  lm_chl <- lm(formula_chl, data = ag_df_CR)
+  # Fit the linear model for 'phy'
+  lm_phy <- lm(formula_phy, data = ag_df_CR)
+  
+  # Store the results in the list
+  lm_list[[paste(var, "chl", sep = "_")]] <- lm_chl
+  lm_list[[paste(var, "phy", sep = "_")]] <- lm_phy
+}
+
+```
+
+
+```{r}
+# Create an empty data frame to store the results
+results_df <- data.frame(variable = character(), response = character(), 
+                          correlation = numeric(), r_squared = numeric(), p_value = numeric(),
+                          stringsAsFactors = FALSE)
+
+# Iterate over each variable
+for (var in vars) {
+  # Create the formula for the linear model
+  formula_chl <- paste("chl ~", var)
+  formula_phy <- paste("phy ~", var)
+  
+  # Fit the linear model for 'chl'
+  lm_chl <- lm(formula_chl, data = ag_df_CR)
+  # Fit the linear model for 'phy'
+  lm_phy <- lm(formula_phy, data = ag_df_CR)
+  
+  # Extract the correlation coefficient, R-squared value, and p-value
+  cor_chl <- cor(ag_df_CR[[var]], ag_df_CR$chl)
+  cor_phy <- cor(ag_df_CR[[var]], ag_df_CR$phy)
+  r_squared_chl <- summary(lm_chl)$r.squared
+  r_squared_phy <- summary(lm_phy)$r.squared
+  p_value_chl <- summary(lm_chl)$coefficients[2, 4]
+  p_value_phy <- summary(lm_phy)$coefficients[2, 4]
+  
+  # Add the results to the data frame
+  results_df <- rbind(results_df, 
+                      data.frame(variable = var, response = "chl",
+                                 correlation = cor_chl, r_squared = r_squared_chl, p_value = p_value_chl),
+                      data.frame(variable = var, response = "phy",
+                                 correlation = cor_phy, r_squared = r_squared_phy, p_value = p_value_phy))
+}
+
+# Print the results
+print(results_df)
+
+```
+
+
+#Library
+
+```{r}
+library(tidyverse)
+library(googlesheets4)
+library(oce)
+library(padr)
+library(rEDM)
+library(ggplot2)
+library(zoo)
+library(quantreg)
+
+```
+
+#List of all data
+```{r}
+
+#CR BUOY
+
 ag_df_CR
 
 ag_df_CR$chl
@@ -26,6 +121,60 @@ ag_df_CR$turb
 
 ag_df_CR$Salinity
 
+#ag_Logan
+                          
+    ag_Logan$HourlyAltimeterSetting 
+
+    ag_Logan$HourlyDewPointTemperature 
+    
+    ag_Logan$HourlyDryBulbTemperature 
+    
+    ag_Logan$HourlyPrecipitation 
+    
+   ag_Logan$HourlyRelativeHumidity 
+   
+    ag_Logan$HourlyStationPressure 
+    
+    ag_Logan$HourlyVisibility
+    
+    ag_Logan$HourlyWetBulbTemperature 
+    
+    ag_Logan$HourlyWindDirection 
+    
+    ag_Logan$HourlyWindGustSpeed
+    
+    ag_Logan$HourlyWindSpeed 
+    
+    #CAM017
+    
+    CAM017$MG
+    
+    #bacteria 
+    
+    ag_CR_bacteria$Enterococcus
+    ag_CR_bacteria$E_coli
+    ag_CR_nutrients$`Ammonium (uM)`
+    
+    #nutrients 
+    ag_CR_nutrients$`Nitrate+nitrite (uM)`
+    ag_CR_nutrients$`Phosphate (uM)`
+    ag_CR_nutrients$`Phosphate (uM)`
+    ag_CR_nutrients$`Total phosphorus (uM)`
+    ag_CR_nutrients$`Chlorophyll a (ug/L)`
+    ag_CR_nutrients$`Phaeophytin (ug/L)`
+    
+#aggregated
+  
+All.ag_Logan
+All.CR_nutrients
+All.CR_bacteria 
+
+
+All.Var 
+
+    
+    
+    
 ```
 
 
@@ -348,9 +497,11 @@ saveRDS(df_CR, "df_CR.rds")
 
 
 ag_df_CR <-df_CR %>%
+  mutate(date = trunc(date,"days")) %>%
    group_by(date) %>%
   summarise(chl=mean(chl, na.rm = TRUE), phy=mean(phy, na.rm = TRUE), ph=mean(ph, na.rm = TRUE), Celsius=mean(Celsius,na.rm = TRUE), spcond=mean(spcond,na.rm = TRUE), do=mean(do,na.rm = TRUE), turb=mean(turb,na.rm = TRUE), Salinity = mean(Salinity,na.rm = TRUE))
 
+## eventually find a way around this
 ag_df_CR <- na.omit(ag_df_CR)
 
 
@@ -368,13 +519,15 @@ if (file.exists("ag_df_CR.rds")) {
 
 ```{r}
 
+df_CR <- readRDS("df_CR.rds")
+
 morndf_CR <- df_CR %>%
   filter(hour %in% c(9, 10, 11))
 
-morndf_CR <-morndf_CR %>%
+morndf_CR <-morndf_CR %>% 
+   mutate(date = trunc(date,"days")) %>%
    group_by(date) %>%
-  summarise(chl=mean(chl), phy=mean(phy), ph=mean(ph), Celsius=mean(Celsius), spcond=mean(spcond), do=mean(do), turb=mean(turb), Salinity = mean(Salinity))
-
+  summarise(chl=mean(chl, na.rm = TRUE), phy=mean(phy, na.rm = TRUE), ph=mean(ph, na.rm = TRUE), Celsius=mean(Celsius,na.rm = TRUE), spcond=mean(spcond,na.rm = TRUE), do=mean(do,na.rm = TRUE), turb=mean(turb,na.rm = TRUE), Salinity = mean(Salinity,na.rm = TRUE))
 
 if (file.exists("morndf_CR.rds")) {
   # If it's saved locally, load the data
@@ -382,7 +535,6 @@ if (file.exists("morndf_CR.rds")) {
 } else {
   saveRDS(morndf_CR, "morndf_CR.rds")
 }
-
 
 ```
 
@@ -398,12 +550,18 @@ Logan$DATE <- as.POSIXct(Logan$DATE, format = "%Y-%m-%dT%H:%M:%S")
 Logan2 <- Logan
 
 # Remove "s" suffixes from HourlyAltimeterSetting column
-Logan2$HourlyAltimeterSetting <- gsub("s$", "", Logan$HourlyAltimeterSetting)
+Logan2$HourlyAltimeterSetting <- gsub("s$", "", Logan2$HourlyAltimeterSetting)
+Logan2$HourlySeaLevelPressure <- gsub("s$", "", Logan2$HourlySeaLevelPressure)
+Logan2$HourlyDewPointTemperature <- gsub("s$", "", Logan2$HourlyDewPointTemperature)
+Logan2$HourlyPrecipitation <- gsub("T", "0", Logan2$HourlyPrecipitation)
 
-# Convert HourlyAltimeterSetting to numeric
-Logan$HourlyAltimeterSetting <- as.numeric(Logan$HourlyAltimeterSetting)
 
-
+Logan2 <- Logan2 %>%
+  mutate_at(vars(HourlyAltimeterSetting, HourlyDewPointTemperature, HourlyDryBulbTemperature,
+                 HourlyPrecipitation, HourlyPressureChange, HourlyPressureTendency,
+                 HourlyRelativeHumidity, HourlySeaLevelPressure, HourlyStationPressure,
+                 HourlyVisibility, HourlyWetBulbTemperature, HourlyWindDirection,
+                 HourlyWindGustSpeed, HourlyWindSpeed), ~ifelse(. == "NULL", NA, .))
 
 # Convert columns to numeric (excluding DATE)
 numeric_cols <- c("HourlyAltimeterSetting", "HourlyDewPointTemperature", "HourlyDryBulbTemperature",
@@ -412,13 +570,37 @@ numeric_cols <- c("HourlyAltimeterSetting", "HourlyDewPointTemperature", "Hourly
                   "HourlyVisibility", "HourlyWetBulbTemperature", "HourlyWindDirection",
                   "HourlyWindGustSpeed", "HourlyWindSpeed")
 
-Logan <- Logan %>%
+Logan2 <- Logan2 %>%
   mutate(across(all_of(numeric_cols), as.numeric))
 
 
-Logan$HourlySeaLevelPressure <- gsub("s$", "", Logan$HourlySeaLevelPressure)
+ag_Logan <- Logan2 %>%
+  group_by(DATE) %>%
+  summarise(
+    HourlyAltimeterSetting = mean(HourlyAltimeterSetting, na.rm = TRUE),
+    HourlyDewPointTemperature = mean(HourlyDewPointTemperature, na.rm = TRUE),
+    HourlyDryBulbTemperature = mean(HourlyDryBulbTemperature, na.rm = TRUE), 
+    HourlyPrecipitation = sum(HourlyPrecipitation, na.rm = TRUE),
+   # HourlyPressureChange = mean(HourlyPressureChange, na.rm = TRUE), SKIP
+   # HourlyPressureTendency = mean(HourlyPressureTendency, na.rm = TRUE), SKIP
+    HourlyRelativeHumidity = mean(HourlyRelativeHumidity, na.rm = TRUE), 
+   # HourlySeaLevelPressure = mean(HourlySeaLevelPressure, na.rm = TRUE), SKIP
+    HourlyStationPressure = mean(HourlyStationPressure, na.rm = TRUE),
+    HourlyVisibility = mean(HourlyVisibility, na.rm = TRUE),
+    HourlyWetBulbTemperature = mean(HourlyWetBulbTemperature, na.rm = TRUE), 
+    HourlyWindDirection = mean(HourlyWindDirection, na.rm = TRUE), 
+    HourlyWindGustSpeed = mean(HourlyWindGustSpeed, na.rm = TRUE), 
+    HourlyWindSpeed = mean(HourlyWindSpeed, na.rm = TRUE)
+    
+    )
+  mutate(date = trunc(date,"days")) %>%
 
-ag_Logan <- Logan %>%
+
+# Convert to POSIXct object
+ag_Logan$DATE <- as.POSIXct(ag_Logan$DATE, format = "%Y-%m-%dT%H:%M:%S")
+
+ag_Logan <-  ag_Logan %>%
+   mutate(DATE = as.Date(DATE)) %>%
   group_by(DATE) %>%
   summarise(
     HourlyAltimeterSetting = mean(HourlyAltimeterSetting, na.rm = TRUE),
@@ -438,7 +620,6 @@ ag_Logan <- Logan %>%
     
     )
 
-ag_Logan <- na.omit(ag_Logan)
 
 if (file.exists("ag_Logan.rds")) {
   # If it's saved locally, load the data
@@ -446,6 +627,9 @@ if (file.exists("ag_Logan.rds")) {
 } else {
   saveRDS(ag_Logan, "ag_Logan.rds")
 }
+
+#ag_Logan <- na.omit(ag_Logan)
+
 
 
 ```
@@ -487,7 +671,7 @@ if (file.exists("CR_physical.rds")) {
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CR_physical <- read_sheet('https://docs.google.com/spreadsheets/d/1P5kzPHFABPTKffxM2yQBTIQWq9NAmnGd3PF6kOsSFNU/edit?usp=sharing', range = 'cr_physical')
-saveRDS(CR_physical, "CR_physical")
+saveRDS(CR_physical, "CR_physical.rds")
 }
 
 #CR_nutrients
@@ -498,7 +682,7 @@ if (file.exists("CR_nutrients.rds")) {
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CR_nutrients <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
-saveRDS(CR_physical, "CR_nutrients")
+saveRDS(CR_physical, "CR_nutrients.rds")
 }
 
 
@@ -675,12 +859,29 @@ ag_CR_bacteria <-CR_bacteria_011 %>%
   summarise(Enterococcus = mean(Enterococcus, na.rm = TRUE), E_coli = mean(E_coli, na.rm = TRUE),)
 ag_CR_bacteria <- na.omit(ag_CR_bacteria)
 
+if (file.exists("ag_CR_bacteria.rds")) {
+  # If it's saved locally, load the data
+ag_CR_bacteria <- readRDS("ag_CR_bacteria.rds")
+} else {
+saveRDS(ag_CR_bacteria, "ag_CR_bacteria.rds")
+}
+
+ag_CR_bacteria <- na.omit(ag_CR_bacteria)
 
 #CR_nutrients
 
 ag_CR_nutrients <- CR_nutrients_166 %>%
    group_by(Date) %>%
   summarise(`Ammonium (uM)` = mean(`Ammonium (uM)`, na.rm = TRUE), `Nitrate+nitrite (uM)` = mean(`Nitrate+nitrite (uM)`, na.rm = TRUE), `Phosphate (uM)` = mean(`Phosphate (uM)`, na.rm = TRUE), `Total phosphorus (uM)` = mean(`Total phosphorus (uM)`,na.rm = TRUE), `Chlorophyll a (ug/L)` = mean(`Chlorophyll a (ug/L)`,na.rm = TRUE), `Phaeophytin (ug/L)` = mean(`Phaeophytin (ug/L)`,na.rm = TRUE)) 
+
+
+if (file.exists("ag_CR_nutrients.rds")) {
+  # If it's saved locally, load the data
+ag_CR_nutrients <- readRDS("ag_CR_nutrients.rds")
+} else {
+saveRDS(ag_CR_nutrients, "ag_CR_bacteria.rds")
+  
+}
 
 ag_CR_nutrients <- na.omit(ag_CR_nutrients)
 
@@ -696,16 +897,40 @@ ag_CR_physical <- CR_physical_011 %>%
             `pH` = mean(`pH`, na.rm = TRUE),
             `Turbidity (NTU)` = mean(`Turbidity (NTU)`, na.rm = TRUE))
 
+
+
+if (file.exists("ag_CR_physical.rds")) {
+  # If it's saved locally, load the data
+ag_CR_physical<- readRDS("ag_CR_physical.rds")
+} else {
+saveRDS(ag_CR_physical, "ag_CR_physical.rds")
+  
+}
+
 ag_CR_physical <- na.omit(ag_CR_physical)
 
 
 #CR_secchi
 
+
+
 ag_CR_secchi <-CR_secchi_011 %>%
    group_by(Date) %>%
   summarise(`Total Suspended Solids (mg/L)`= mean(`Total Suspended Solids (mg/L)`, na.rm = TRUE ), `Secchi disk depth (m)` = mean(`Secchi disk depth (m)`, na.rm = TRUE))
 
+
+if (file.exists("ag_CR_secchi.rds")) {
+  # If it's saved locally, load the data
+ag_CR_secchil<- readRDS("ag_CR_secchi.rds")
+} else {
+saveRDS(ag_CR_secchi, "ag_CR_secchi.rds")
+  
+}
+
 ag_CR_secchi <- na.omit(ag_CR_secchi)
+
+
+
 
 ```
 
@@ -721,7 +946,7 @@ MWRACSOData2016 <- readRDS("MWRACSOData2016.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 MWRACSOData2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1BF5lMyYrnILoS-rySwTGILiaqYfxA5-Pz5P2xUmOIq8/edit?usp=sharing')
-saveRDS(MWRACSOData2016, "MWRACSOData2016")
+saveRDS(MWRACSOData2016, "MWRACSOData2016.rds")
 }
 
 #MWRACSOData
@@ -732,7 +957,7 @@ MWRACSOData <- readRDS("MWRACSOData.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 MWRACSOData <- read_sheet('https://docs.google.com/spreadsheets/d/1PRu1yvIuxOnMyazAVkXGv7dkOKUClNxl7CrvrctPREU/edit?usp=sharing')
-saveRDS(MWRACSOData, "MWRACSOData")
+saveRDS(MWRACSOData, "MWRACSOData.rds")
 }
 
 ```
@@ -926,10 +1151,9 @@ if (file.exists("MWRACSOFinal.rds")) {
   # If it's saved locally, load the data
 MWRACSOFinal <- readRDS("MWRACSOFinal.rds")
 } else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-MWRACSOFinal <- read_sheet('https://docs.google.com/spreadsheets/d/1kPHmgJUHF7GtNJJDme_gWgB7hTS7i6SE7pqazChKMZ4/edit?usp=sharing')
-saveRDS(MWRACSOFinal, "MWRACSOFinal")
+saveRDS(MWRACSOFinal, "MWRACSOFinal.rds")
 }
+
 
 ```
 
@@ -965,7 +1189,7 @@ CAM2015CSO <- readRDS("CAM2015CSO.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CAM2015CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2015CAMCSO')
-saveRDS(CAM2015CSO, "CAM2015CSO")
+saveRDS(CAM2015CSO, "CAM2015CSO.rds")
 }
 
 
@@ -977,7 +1201,7 @@ CAM2016CSO <- readRDS("CAM2016CSO.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CAM2016CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2016CAMCSO')
-saveRDS(CAM2016CSO , "CAM2016CSO")
+saveRDS(CAM2016CSO , "CAM2016CSO.rds")
 }
 
 CAM2016CSO <- subset(CAM2016CSO, select = c("Date", "CAM017* (MG)"))
@@ -986,11 +1210,11 @@ CAM2016CSO <- subset(CAM2016CSO, select = c("Date", "CAM017* (MG)"))
 
 if (file.exists("CAM2017CSO.rds")) {
   # If it's saved locally, load the data
-CAM2017CSO <- readRDS("CAM201C7SO.rds")
+CAM2017CSO <- readRDS("CAM2017CSO.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CAM2017CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2017CAMCSO')
-saveRDS(CAM2017CSO , "CAM2017CSO")
+saveRDS(CAM2017CSO , "CAM2017CSO.rds")
 }
 
 CAM2017CSO <- subset(CAM2017CSO, select = c("Date", "CAM017* (MG)"))
@@ -1000,11 +1224,11 @@ CAM2017CSO <- subset(CAM2017CSO, select = c("Date", "CAM017* (MG)"))
 
 if (file.exists("CAM2018CSO.rds")) {
   # If it's saved locally, load the data
-CAM2018CSO <- readRDS("CAM201C7SO.rds")
+CAM2018CSO <- readRDS("CAM2018CSO.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CAM2018CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2018CAMCSO')
-saveRDS(CAM2018CSO , "CAM2018CSO")
+saveRDS(CAM2018CSO , "CAM2018CSO.rds")
 }
 
 
@@ -1015,11 +1239,11 @@ CAM2018CSO <- subset(CAM2018CSO, select = c("Date", "CAM017* (MG)"))
 
 if (file.exists("CAM2019CSO.rds")) {
   # If it's saved locally, load the data
-CAM2019CSO <- readRDS("CAM201C7SO.rds")
+CAM2019CSO <- readRDS("CAM2019CSO.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CAM2019CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2019CAMCSO')
-saveRDS(CAM2019CSO , "CAM2019CSO")
+saveRDS(CAM2019CSO , "CAM2019CSO.rds")
 }
 
 CAM2019CSO <- subset(CAM2019CSO, select = c("Date", "CAM017* (MG)"))
@@ -1029,11 +1253,11 @@ CAM2019CSO <- subset(CAM2019CSO, select = c("Date", "CAM017* (MG)"))
 
 if (file.exists("CAM2020CSO.rds")) {
   # If it's saved locally, load the data
-CAM2020CSO <- readRDS("CAM201C7SO.rds")
+CAM2020CSO <- readRDS("CAM2020CSO.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CAM2020CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2020CAMCSO')
-saveRDS(CAM2020CSO , "CAM2020CSO")
+saveRDS(CAM2020CSO , "CAM2020CSO.rds")
 }
 
 CAM2020CSO <- subset(CAM2020CSO, select = c("Date", "CAM017* (MG)"))
@@ -1044,11 +1268,11 @@ CAM2020CSO <- subset(CAM2020CSO, select = c("Date", "CAM017* (MG)"))
 
 if (file.exists("CAM2021CSO.rds")) {
   # If it's saved locally, load the data
-CAM2021CSO <- readRDS("CAM201C7SO.rds")
+CAM2021CSO <- readRDS("CAM2021CSO.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CAM2021CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2021CAMCSO')
-saveRDS(CAM2021CSO , "CAM2021CSO")
+saveRDS(CAM2021CSO , "CAM2021CSO.rds")
 }
 
 CAM2021CSO <- subset(CAM2021CSO, select = c("Date", "CAM017* (MG)"))
@@ -1057,11 +1281,11 @@ CAM2021CSO <- subset(CAM2021CSO, select = c("Date", "CAM017* (MG)"))
 
 if (file.exists("CAM2022CSO.rds")) {
   # If it's saved locally, load the data
-CAM2022CSO <- readRDS("CAM201C7SO.rds")
+CAM2022CSO <- readRDS("CAM2022CSO.rds")
 } else {
   # If it's not saved locally, read it from Google Sheets and save it locally
 CAM2022CSO <- read_sheet('https://docs.google.com/spreadsheets/d/11v15YsnizQBilaTK-mzJWz-qp1PLJGqQwrxQ2AV7WdA/edit?usp=sharing', sheet = '2022CAMCSO')
-saveRDS(CAM2022CSO , "CAM2022CSO")
+saveRDS(CAM2022CSO , "CAM2022CSO.rds")
 }
 
 CAM2022CSO <- subset(CAM2022CSO, select = c("Date", "CAM017* (MG)"))
@@ -1114,6 +1338,16 @@ CAM017_discharges <- subset(CAM017, MG != 0)
 
 
 
+if (file.exists("CAM017.rds")) {
+  # If it's saved locally, load the data
+  CAM017 <- readRDS("All.CAM017.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(All.CAM017, "CAM017.rds")
+} 
+  
+
+
 ```
 
 ### ALL CSOs
@@ -1153,9 +1387,14 @@ All <- All[order(year(All$Date), month(All$Date), day(All$Date)), ]
 Join CAM + CSO
 
 ```{r}
-All <- merge(All, CAM017, by = "Date", all = TRUE)
-All <- All %>%
-  rename(CAM017MG = MG)
+
+
+CAM017 #Top CAM CSOs site 
+All #ALL MWRA CSOs
+
+All.CSOs <- merge(All, CAM017, by = "Date", all = TRUE)
+
+
 ```
 
 ###CSO OCCURRANCES
@@ -1175,24 +1414,51 @@ cso_counts <- as.data.frame(table(MWRACSOFinal$CSO_ID))
 ##MWRA X EPA
 
 ```{r}
-
+ag_df_CR <- ag_df_CR %>%
+    mutate(date = as.POSIXct(date, format = "%Y-%m-%d"))
+ag_df_CR <- ag_df_CR %>% pad()
 
 #All.CR_bacteria
 ag_CR_bacteria <- ag_CR_bacteria %>% pad()
 All.CR_bacteria <- left_join(ag_CR_bacteria, ag_df_CR,  by = c("Date" = "date"  ))
-                            
 
+if (file.exists("All.CR_bacteria.rds")) {
+  # If it's saved locally, load the data
+ All.CR_bacteria <- readRDS("All.CR_bacteria.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(All.CR_bacteria, "All.CR_bacteria.rds")
+}
+                            
 #All.CR_secchi
 
 ag_CR_secchi <- ag_CR_secchi %>% pad()
 All.CR_secchi <- left_join(ag_CR_secchi, ag_df_CR,  by = c("Date" = "date"  ))
+
+
+if (file.exists("All.CR_secchi.rds")) {
+  # If it's saved locally, load the data
+  CR2023 <- readRDS("All.secchi.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(All.CR_secchi, "All.CR_secchi.rds")
+}
+                            
 
 #All.CR.nutrients
 
 ag_CR_nutrients <- ag_CR_nutrients %>% pad()
 All.CR_nutrients <- left_join(ag_CR_nutrients, ag_df_CR,  by = c("Date" = "date"  ))
 
+if (file.exists("All.CR_nutrients.rds")) {
+  # If it's saved locally, load the data
+  All.CR_nutrients <- readRDS("All.nutrients.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(All.CR_nutrients, "All.CR_nutrients.rds")
+}
 
+                          
 ```
 
 
@@ -1205,16 +1471,289 @@ All.CR_nutrients <- left_join(ag_CR_nutrients, ag_df_CR,  by = c("Date" = "date"
 
 #All.CR_bacteria
 ag_Logan <- ag_Logan %>% pad()
-All.ag_Logan <- left_join(ag_Logan, ag_df_CR,  by = c("Date" = "date"  ))
-                            
+All.ag_Logan <- left_join(ag_Logan, ag_df_CR,  by = c("DATE" = "date"  ))
 
+if (file.exists("All.ag_Logan.rds")) {
+  # If it's saved locally, load the data
+  All.ag_Logan <- readRDS("All.ag_Logan.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(All.ag_Logan, "All.ag_Logan.rds")
+}
 
+    
+  
 
 ```
 
+#CSOS
+
+```{r}
+
+CAM017 <- CAM017 %>% pad()
+All.CAM017 <- left_join(CAM017, ag_df_CR,  by  = c("Date" = "date"  ))
+
+if (file.exists("All.CAM017.rds")) {
+  # If it's saved locally, load the data
+  All.CAM017 <- readRDS("All.CAM017.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(All.CAM017, "All.CAM017.rds")
+} 
+  
+  
+```
+
+
+#Combine All Var
+
+```{r}
+All.Var1 <-  left_join(CAM017, ag_df_CR,  by  = c("Date" = "date"  ))
+
+ag_Logan <- ag_Logan %>% pad()
+All.Var1 <- left_join(ag_Logan, ag_df_CR,  by = c("DATE" = "date"  ))
+All.Var2 <- left_join(All.Var1, CAM017,  by = c("DATE" = "Date"  ))
+All.Var3 <- left_join(All.Var2, ag_CR_bacteria,  by = c("DATE" = "Date"  ))
+All.Var4 <- left_join(All.Var3, ag_CR_nutrients,  by = c("DATE" = "Date"  ))
+All.Var5 <- left_join(All.Var4, ag_CR_nutrients,  by = c("DATE" = "Date"  ))
+
+
+All.Var <- All.Var5
+
+
+if (file.exists("All.Var.rds")) {
+  # If it's saved locally, load the data
+  All.Var <- readRDS("All.Var.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(All.Var, "All.Var.rds")
+} 
+  
+  
+```
+
+
+#SURROGATE
+
+```{r}
+
+ag_df_CR <- na.omit(ag_df_CR)
+ag_Logan <- na.omit(ag_Logan)
+ag_CR_nutrients
+ag_CR_secchi
+ag_CR_bacteria
+
+
+#ag_CR_secchi
+
+ag_CR_secchi$`Total Suspended Solids (mg/L)`
+
+#ag_CR_nutrients 
+
+ag_CR_nutrients$`Ammonium (uM)`
+ag_CR_nutrients$`Nitrate+nitrite (uM)`
+ag_CR_nutrients$`Phosphate (uM)`
+ag_CR_nutrients$`Total phosphorus (uM)`
+ag_CR_nutrients$`Phaeophytin (ug/L)`
+
+#ag_CR_bacteria
+
+ag_CR_bacteria$Enterococcus
+ag_CR_bacteria$E_coli
+ag_CR_bacteria$coliform
+
+
+    
+  
+
+
+#ADD CSOs
+
+# Convert ag_df_CR to a time series object if necessary
+Surrogate_phy <- as.ts(ag_df_CR$phy)
+Surrogate_chl <- as.ts(ag_df_CR$chl)
+Surrogate_ph <- as.ts(ag_df_CR$ph)
+Surrogate_Celsius <- as.ts(ag_df_CR$Celsius)
+Surrogate_spcond <- as.ts(ag_df_CR$spcond)
+Surrogate_do <- as.ts(ag_df_CR$do)
+Surrogate_turb <- as.ts(ag_df_CR$turb)
+Surrogate_Salinity <- as.ts(ag_df_CR$Salinity)
+Surrogate_del_phy <- as.ts(ag_df_CR$Salinity)
+Surrogate_TSS <- as.ts(ag_CR_secchi$`Total Suspended Solids (mg/L)`)
+Surrogate_Ammonium <- as.ts(ag_CR_nutrients$`Ammonium (uM)`)
+Surrogate_nitrate+nitrite <- as.ts(ag_CR_nutrients$`Nitrate+nitrite (uM)`)
+Surrogate_phosphate <- as.ts(ag_CR_nutrients$`Phosphate (uM)`)
+Surrogate_phosphorous <- as.ts(ag_CR_nutrients$`Total phosphorus (uM)`)
+Surrogate_Phaeophytin <- as.ts(ag_CR_nutrients$`Phaeophytin (ug/L)`)
+Surrogate_Enterococcus <- as.ts(ag_CR_bacteria$Enterococcus)
+Surrogate_E_coli <- as.ts(ag_CR_bacteria$E_coli)
+Surrogate_coliform <- as.ts(ag_CR_bacteria$coliform)
+Surrogate_alt <-  as.ts(ag_Logan$HourlyAltimeterSetting)
+Surrogate_Dew <-  as.ts(ag_Logan$HourlyDewPointTemperature)
+Surrogate_Precip <-  as.ts(ag_Logan$HourlyPrecipitation)
+Surrogate_Humidity <-  as.ts(ag_Logan$HourlyRelativeHumidity)
+Surrogate_Station <-  as.ts(ag_Logan$HourlyStationPressure)
+Surrogate_Visibility <-  as.ts(ag_Logan$HourlyVisibility)
+Surrogate_WindDirection <-  as.ts(ag_Logan$HourlyWindDirection)
+Surrogate_WindGustSpeed <-  as.ts(ag_Logan$HourlyWindGustSpeed)
+Surrogate_WindSpeed <-  as.ts(ag_Logan$HourlyWindSpeed)
 
 
 
+#Surrogate
+
+Surrogate_phy <- SurrogateData(Surrogate_phy, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_chl <- SurrogateData(Surrogate_chl, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_ph <- SurrogateData(Surrogate_ph, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_Celsius <- SurrogateData(Surrogate_Celsius, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_spcond <- SurrogateData(Surrogate_spcond, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_do <- SurrogateData(Surrogate_do, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_turb <- SurrogateData(Surrogate_turb, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_Salinity <- SurrogateData(Surrogate_Salinity, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_del_phy <- SurrogateData(Surrogate_del_phy, method = c("ebisuzaki"), num_surr = 1, alpha = 0 )
+Surrogate_TSS <- SurrogateData(as.ts(ag_CR_secchi$`Total Suspended Solids (mg/L)`), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_Ammonium <- SurrogateData(as.ts(ag_CR_nutrients$`Ammonium (uM)`), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_nitrate_nitrite <- SurrogateData(as.ts(ag_CR_nutrients$`Nitrate+nitrite (uM)`), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_phosphate <- SurrogateData(as.ts(ag_CR_nutrients$`Phosphate (uM)`), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_phosphorous <- SurrogateData(as.ts(ag_CR_nutrients$`Total phosphorus (uM)`), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_Phaeophytin <- SurrogateData(as.ts(ag_CR_nutrients$`Phaeophytin (ug/L)`), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_Enterococcus <- SurrogateData(as.ts(ag_CR_bacteria$Enterococcus), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_E_coli <- SurrogateData(as.ts(ag_CR_bacteria$E_coli), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_coliform <- SurrogateData(as.ts(ag_CR_bacteria$coliform), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_alt <- SurrogateData(as.ts(ag_Logan$HourlyAltimeterSetting), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_Dew <- SurrogateData(as.ts(ag_Logan$HourlyDewPointTemperature), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_Precip <- SurrogateData(as.ts(ag_Logan$HourlyPrecipitation), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_Humidity <- SurrogateData(as.ts(ag_Logan$HourlyRelativeHumidity), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_Station <- SurrogateData(as.ts(ag_Logan$HourlyStationPressure), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_Visibility <- SurrogateData(as.ts(ag_Logan$HourlyVisibility), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_WindDirection <- SurrogateData(as.ts(ag_Logan$HourlyWindDirection), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_WindGustSpeed <- SurrogateData(as.ts(ag_Logan$HourlyWindGustSpeed), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+Surrogate_WindSpeed <- SurrogateData(as.ts(ag_Logan$HourlyWindSpeed), method = c("ebisuzaki"), num_surr = 1, alpha = 0)
+
+
+
+
+
+
+# Check the class of each object
+sapply(list(Surrogate_phy, Surrogate_chl, Surrogate_ph, Surrogate_Celsius, 
+            Surrogate_spcond, Surrogate_do, Surrogate_turb, Surrogate_Salinity, 
+            Surrogate_del_phy, 
+Surrogate_TSS  ,
+Surrogate_Ammonium ,
+Surrogate_nitrate+nitrite ,
+Surrogate_phosphate  ,
+Surrogate_phosphorous ,
+Surrogate_Phaeophytin  ,
+Surrogate_Enterococcus  ,
+Surrogate_E_coli ,
+Surrogate_coliform ,
+Surrogate_alt ,
+Surrogate_Dew ,
+Surrogate_Precip ,
+Surrogate_Humidity  ,
+Surrogate_Station , 
+Surrogate_Visibility ,
+Surrogate_WindDirection ,
+Surrogate_WindGustSpeed ,
+Surrogate_WindSpeed ) 
+       
+       class)
+
+Surrogate_phy <- as.data.frame(Surrogate_phy)
+Surrogate_chl <- as.data.frame(Surrogate_chl)
+Surrogate_ph <- as.data.frame(Surrogate_ph)
+Surrogate_Celsius <- as.data.frame(Surrogate_Celsius)
+Surrogate_spcond <- as.data.frame(Surrogate_spcond)
+Surrogate_do <- as.data.frame(Surrogate_do)
+Surrogate_turb <- as.data.frame(Surrogate_turb)
+Surrogate_Salinity <- as.data.frame(Surrogate_Salinity)
+Surrogate_del_phy <- as.data.frame(Surrogate_del_phy)
+Surrogate_TSS <- as.data.frame(Surrogate_TSS)
+Surrogate_Ammonium <- as.data.frame(Surrogate_Ammonium)
+Surrogate_nitrate_nitrite <- as.data.frame(Surrogate_nitrate_nitrite)
+Surrogate_phosphate <- as.data.frame(Surrogate_phosphate)
+Surrogate_phosphorous <- as.data.frame(Surrogate_phosphorous)
+Surrogate_Phaeophytin <- as.data.frame(Surrogate_Phaeophytin)
+Surrogate_Enterococcus <- as.data.frame(Surrogate_Enterococcus)
+Surrogate_E_coli <- as.data.frame(Surrogate_E_coli)
+Surrogate_coliform <- as.data.frame(Surrogate_coliform)
+Surrogate_alt <- as.data.frame(Surrogate_alt)
+Surrogate_Dew <- as.data.frame(Surrogate_Dew)
+Surrogate_Precip <- as.data.frame(Surrogate_Precip)
+Surrogate_Humidity <- as.data.frame(Surrogate_Humidity)
+Surrogate_Station <- as.data.frame(Surrogate_Station)
+Surrogate_Visibility <- as.data.frame(Surrogate_Visibility)
+Surrogate_WindDirection <- as.data.frame(Surrogate_WindDirection)
+Surrogate_WindGustSpeed <- as.data.frame(Surrogate_WindGustSpeed)
+Surrogate_WindSpeed <- as.data.frame(Surrogate_WindSpeed)
+
+
+
+Surrogate <- bind_cols(
+  Surrogate_phy,
+  Surrogate_chl,
+  Surrogate_ph,
+  Surrogate_Celsius,
+  Surrogate_spcond,
+  Surrogate_do,
+  Surrogate_turb,
+  Surrogate_Salinity,
+  Surrogate_del_phy,
+Surrogate_TSS ,
+Surrogate_Ammonium,
+Surrogate_nitrate+nitrite,
+Surrogate_phosphate ,
+Surrogate_phosphorous,
+Surrogate_Phaeophytin ,
+Surrogate_Enterococcus ,
+Surrogate_E_coli,
+Surrogate_coliform ,
+Surrogate_alt ,
+Surrogate_Dew,
+Surrogate_Precip,
+Surrogate_Humidity ,
+Surrogate_Station ,
+Surrogate_Visibility ,
+Surrogate_WindDirection ,
+Surrogate_WindGustSpeed,
+Surrogate_WindSpeed 
+
+)
+
+# Set the column names
+colnames(Surrogate) <- c(
+  "phy",
+  "chl",
+  "ph",
+  "Celsius",
+  "spcond",
+  "do",
+  "turb",
+  "Salinity",
+  "del_phy",
+  "TSS",
+"Ammonium",
+"nitrate+nitrite",
+"phosphate",
+"phosphorous",
+"Phaeophytin",
+"Enterococcus",
+"E_coli",
+"coliform",
+"alt",
+"Dew",
+"Precip",
+"Humidity",
+"Station",
+"Visibility",
+"WindDirection",
+"WindGustSpeed",
+"WindSpeed"
+
+)
+
+```
 
 #PLOT 2021 DRIVERS
 
@@ -1277,11 +1816,41 @@ df_CR %>% group_by(date,hour) %>%
 
 
 
+ag_df_CR %>% 
+  group_by(date) %>%
+  filter(date >= as.Date("2021-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="Chlorophyll (RFU)")) + 
+  geom_path(aes(y=phy,color="Phycocanin (RFU)")) +
+    scale_color_manual(values=c("Chlorophyll (RFU)"="darkgreen", "Phycocanin (RFU)"="orange")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("2021 Chlorophyll V. Phycocanin ") + 
+    labs(x = "Dates", y = "RFU (Relative Fluorescence Units)")
+
+
+  ag_df_CR <- ag_df_CR %>% pad()
+
+
+ag_df_CR %>% 
+  group_by(date) %>%
+  filter(date >= as.Date("2015-05-01") & date <= as.Date("2021-11-01"))  %>%
+  ggplot(aes(x=date)) + 
+  geom_path(aes(y=chl,color="Chlorophyll (RFU)")) + 
+  geom_path(aes(y=phy,color="Phycocanin (RFU)")) +
+    scale_color_manual(values=c("Chlorophyll (RFU)"="darkgreen", "Phycocanin (RFU)"="orange")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("< 2021 Chlorophyll V. Phycocanin ") + 
+    labs(x = "Dates", y = "RFU (Relative Fluorescence Units)")
+
+ag_df_CR <- na.omit(ag_df_CR)
+
+
 ```
 
 ### Plot All EPA Buoy Vars All Time
 
 ```{r}
+#df_CR
 df_CR %>%
   group_by(date, hour) %>%
   summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity"), mean), .groups = "keep") %>%
@@ -1309,6 +1878,46 @@ df_CR %>%
       labs(x = "Dates", y = "Units") +
 theme(plot.title = element_text(hjust = 0.5)) +
   ggtitle("All EPA Buoy Vars")
+
+
+ag_df_CR <- ag_df_CR %>%
+    mutate(date = as.POSIXct(date, format = "%Y-%m-%d"))
+  ag_df_CR <- ag_df_CR %>% pad()
+  
+#ag_df_CR
+ag_df_CR %>%
+    mutate(date = as.POSIXct(date, format = "%Y-%m-%d")) %>%
+  group_by(date) %>%
+  summarise(across(c("chl", "phy", "ph", "Celsius", "spcond", "do", "turb", "Salinity"), mean), .groups = "keep") %>%
+  ggplot(aes(x = date)) +
+  geom_path(aes(y = chl, color = "Chlorophyll (RFU)")) +
+  geom_path(aes(y = phy, color = "Phycocanin (RFU)")) +
+  geom_path(aes(y = ph, color = "pH")) +
+  geom_path(aes(y = Celsius, color = "Temperature (Celsius)")) +
+  geom_path(aes(y = spcond, color = "Specific Conductance Ratio (mS/cm)")) +
+  geom_path(aes(y = do, color = "Dissolved Oxygen (mg/L)")) +
+  geom_path(aes(y = turb, color = "Turbidity (FNU)")) +
+  geom_path(aes(y = Salinity, color = "Salinity (ppm)")) +
+  scale_color_manual(
+    values = c("Chlorophyll (RFU)" = "green",
+               "Phycocanin (RFU)" = "orange",
+               "pH" = "brown",
+               "Temperature (Celsius)" = "red",
+               "Specific Conductance Ratio (mS/cm)" = "pink",
+               "Dissolved Oxygen (mg/L)" = "yellow",
+               "Turbidity (FNU)" = "purple",
+               "Salinity (ppm)" = "blue"),
+    name = "Color"
+  ) + 
+      labs(x = "Dates", y = "Units") +
+theme(plot.title = element_text(hjust = 0.5)) +
+    ylim(0, 31) +
+  ggtitle("2015 - 2023 EPA Buoy Variables")
+
+
+ag_df_CR <- na.omit(ag_df_CR)
+
+
 ```
 
 
@@ -1358,6 +1967,159 @@ mornddf_CR$do
 mornddf_CR$turb
 
 mornddf_CR$Salinity
+
+
+```
+
+#ACFs
+```{r}
+
+ag_df_CR
+morndf_CR
+df_CR
+
+
+
+```
+
+
+###ACF Aggreggated
+
+```{r}
+ag_df_CR <- na.omit(ag_df_CR)
+
+#2021
+ts_chl_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
+
+ts_phy_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
+
+
+#MORNDF
+morndf_chl_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
+
+morndf_phy_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
+
+length(ts_chl_2021)
+acf(ts_chl_2021,lag.max = 24*30, main = " Hourly Chlorophyll ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 24*30, main = "Hourly Phycocanin ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+acf(ts_chl_2021,lag.max = 30, main = "Daily Chlorophyll ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 30, main = "Daily Phycocanin  ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+length(ts_chl_2021)
+acf(ts_chl_2021,lag.max = 24*30, main = " 9 AM - 12 PM Chlorophyll ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 24*30, main = "9 AM - 12 PM Phycocanin ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+## you can check an individual value as follows
+cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
+
+
+```
+
+#PACFs
+
+```{r}
+
+morndf_CR <- na.omit(morndf_CR)
+ag_df_CR<- na.omit(ag_df_CR)
+
+#2021
+ts_chl_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
+
+ts_phy_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
+
+
+#MORNDF
+morndf_chl_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
+
+morndf_phy_2021 <- ag_df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
+
+
+acf(ts_chl_2021,lag.max = 20, main = "Daily Chlorophyll ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 20, main = "Daily Phycocanin  ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+length(ts_chl_2021)
+acf(ts_chl_2021,lag.max = 20, main = " 9 AM - 12 PM Chlorophyll ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 20, main = "9 AM - 12 PM Phycocanin ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+## you can check an individual value as follows
+cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
+
+
+#PACF 2021
+pacf2021 <- morndf_CR %>% 
+  filter(year(date)==2021) %>%
+  pull(chl) %>%
+  pacf(lag.max = 7 )
+plot(pacf2021, main = " 9 AM - 12 PM Chlorophyll PACF")
+
+pacf2021 <- morndf_CR %>% 
+  filter(year(date)==2021) %>%
+  pull(phy) %>%
+  pacf(lag.max= 7)
+plot(pacf2021, main = "9 AM - 12 PM Phycocanin PACF")
+
+
+pacf2021 <- ag_df_CR %>% 
+  filter(year(date)==2021) %>%
+  pull(chl) %>%
+  pacf(lag.max= 7)
+plot(pacf2021, main = "Daily Chlorophyll PACF")
+
+pacf2021 <- ag_df_CR %>% 
+  filter(year(date)==2021) %>%
+  pull(phy) %>%
+  pacf(lag.max= 7)
+plot(pacf2021, main = "Daily Phyocanin PACF")
+
+
 
 
 ```
@@ -1668,18 +2430,693 @@ acf_ag_Logan$HourlyAltimeterSetting <- ag_Logan %>%
 ```
 
 
-
-#ACF
-
-
-#PACF
-
-control f w/ pacf 
-
 #ARIMA
 
 
 #COEFFICENTS OF CORRELATION
+
+#REGRESSIONS 
+
+```{r}
+
+ag_df_CR %>% 
+  ggplot(aes(x=ph, y=phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(phy), color = "Mean Phy Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean(ph), color = "Mean Ph Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Mean Phy Trendline" = "blue", 
+                                 "Best Fit Line" = "purple", 
+                                 "Mean Ph Trendline" = "orange"), 
+                     breaks = c("Points", "Mean Phy Trendline", 
+                                "Best Fit Line", "Mean Ph Trendline"),
+                     labels = c("Points", "Mean Phy Trendline", 
+                                "Best Fit Line", "Mean Ph Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA),
+    linetype = c("blank", "dotted", "solid", "dotted")
+  ))) +
+  ggtitle("pH vs. Phycocanin (RFU)") +
+  labs(color = "Legend",
+       x = "pH",
+       y = "Phycocanin (RFU")
+
+
+ag_df_CR %>% 
+  ggplot(aes(x=ph, y=phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(phy), color = "Mean Phycocanin Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean(ph), color = "Mean pH Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Mean pH Trendline" = "blue", 
+                                 "Best Fit Line" = "purple", 
+                                 "Mean Phycocanin Trendline" = "orange"), 
+                     breaks = c("Points", "Mean Phycocanin Trendline", 
+                                "Best Fit Line", "Mean pH Trendline"),
+                     labels = c("Points", "Mean Phycocanin Trendline", 
+                                "Best Fit Line", "Mean pH Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA),
+    linetype = c("blank", "dotted", "solid", "dotted")
+  ))) +
+  ggtitle("pH vs. Phycocanin (RFU)") +
+  labs(color = "Legend",
+       x = "pH",
+       y = "Phycocanin (RFU")
+
+
+
+```
+
+##PLOTS W/ CORR > 0.5
+
+
+
+```{r}
+phphy
+dochl
+turbphy
+
+
+
+ag_df_CR %>% 
+  ggplot(aes(x=ph, y=phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", ) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$ph), color = "Ph Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$ph), color = "Ph Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Ph Mean Trendline" = "orange", "Ph Median Trendline" = "brown"), 
+                     breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline"),
+                     labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(1, 0, 0, 0, 0 ,0)
+  ))) +
+  ggtitle("Ph vs. Phy") +
+  labs(color = "Legend Title")
+
+
+
+
+
+
+```
+
+
+#PLOTS 
+```{r}
+
+ag_df_CR <- na.omit(ag_df_CR)
+ag_Logan <- na.omit(ag_Logan)
+ag_CR_nutrients
+ag_CR_secchi
+ag_CR_bacteria
+
+
+#ag_CR_secchi
+
+ag_CR_secchi$`Total Suspended Solids (mg/L)`
+
+#ag_CR_nutrients 
+
+ag_CR_nutrients$`Ammonium (uM)`
+ag_CR_nutrients$`Nitrate+nitrite (uM)`
+ag_CR_nutrients$`Phosphate (uM)`
+ag_CR_nutrients$`Total phosphorus (uM)`
+ag_CR_nutrients$`Phaeophytin (ug/L)`
+
+#ag_CR_bacteria
+
+ag_CR_bacteria$Enterococcus
+ag_CR_bacteria$E_coli
+ag_CR_bacteria$coliform
+
+
+#Ph MEDIAN AND MEAN ARE THE SAME?
+
+
+#PH VS. PHY
+
+ag_df_CR %>% 
+  ggplot(aes(x=ph, y=phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", ) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$ph), color = "Ph Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$ph), color = "Ph Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Ph Mean Trendline" = "orange", "Ph Median Trendline" = "brown"), 
+                     breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline"),
+                     labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(1, 0, 0, 0, 0 ,0)
+  ))) +
+  ggtitle("Ph vs. Phy") +
+  labs(color = "Legend Title")
+
+#PH VS. CHL
+
+
+ag_df_CR %>% 
+  ggplot(aes(x=ph, y=chl, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", ) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$ph), color = "Ph Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$ph), color = "Ph Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Ph Mean Trendline" = "orange", "Ph Median Trendline" = "brown"), 
+                     breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline"),
+                     labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(1, 1, 1, 1, 1 ,1)
+  ))) +
+  ggtitle("Ph vs. Chl") +
+  labs(color = "Legend Title")
+
+
+# Ph vs. Del_phy
+ag_df_CR %>% 
+  ggplot(aes(x=ph, y=del_phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$ph), color = "Ph Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$ph), color = "Ph Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Ph Mean Trendline" = "orange", "Ph Median Trendline" = "brown"), 
+                     breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline"),
+                     labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Ph Mean Trendline", "Ph Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(0, 0, 0, 0, 1, 1)
+  ))) +
+  ggtitle("Ph vs. Del_phy") +
+  labs(color = "Legend Title")
+
+
+# Chl vs. Phy
+ag_df_CR %>% 
+  ggplot(aes(x=chl, y=phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Chl Mean Trendline" = "orange", "Chl Median Trendline" = "brown"), 
+                     breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Chl Mean Trendline", "Chl Median Trendline"),
+                     labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Chl Mean Trendline", "Chl Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(0, 1, 1, 1, 1 ,1)
+  ))) +
+  ggtitle("Chl vs. Phy") +
+  labs(color = "Legend Title")
+
+# Celsius vs. Phy
+ag_df_CR %>% 
+  ggplot(aes(x=Celsius, y=phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$Celsius), color = "Celsius Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$Celsius), color = "Celsius Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Celsius Mean Trendline" = "orange", "Celsius Median Trendline" = "brown"), 
+                     breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline"),
+                     labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline", 
+                                "Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(0, 1, 1, 1, 1 ,1)
+  ))) +
+  ggtitle("Celsius vs. Phy") +
+  labs(color = "Legend Title")
+
+# Celsius vs. Chl
+ag_df_CR %>% 
+  ggplot(aes(x=Celsius, y=chl, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$Celsius), color = "Celsius Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Celsius), color = "Celsius Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Celsius Mean Trendline" = "orange", "Celsius Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Celsius vs. Chl") +
+labs(color = "Legend Title")
+
+
+#Celsius vs. Del_phy
+
+ag_df_CR %>%
+ggplot(aes(x=Celsius, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$Celsius), color = "Celsius Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Celsius), color = "Celsius Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Celsius Mean Trendline" = "orange", "Celsius Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Celsius Mean Trendline", "Celsius Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Celsius vs. Del_phy") +
+labs(color = "Legend Title")
+
+#Spcond vs. Phy
+ag_df_CR %>%
+ggplot(aes(x=spcond, y=phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$spcond), color = "Spcond Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$spcond), color = "Spcond Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Spcond Mean Trendline" = "orange", "Spcond Median Trendline" = "brown"),
+breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline"),
+labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 1, 1, 1, 1 ,1)
+))) +
+ggtitle("Spcond vs. Phy") +
+labs(color = "Legend Title")
+
+#Spcond vs. Chl
+ag_df_CR %>%
+ggplot(aes(x=spcond, y=chl, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$spcond), color = "Spcond Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$spcond), color = "Spcond Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Spcond Mean Trendline" = "orange", "Spcond Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Spcond vs. Chl") +
+labs(color = "Legend Title")
+
+
+#Spcond vs. Del_phy
+
+ag_df_CR %>%
+ggplot(aes(x=spcond, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$spcond), color = "Spcond Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$spcond), color = "Spcond Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Spcond Mean Trendline" = "orange", "Spcond Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Spcond Mean Trendline", "Spcond Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Spcond vs. Del_phy") +
+labs(color = "Legend Title")
+
+#Do vs. Phy
+ag_df_CR %>%
+ggplot(aes(x=do, y=phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$do), color = "Do Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$do), color = "Do Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Do Mean Trendline" = "orange", "Do Median Trendline" = "brown"),
+breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline"),
+labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 1, 1, 1, 1 ,1)
+))) +
+ggtitle("Do vs. Phy") +
+labs(color = "Legend Title")
+
+#Do vs. Chl
+ag_df_CR %>%
+ggplot(aes(x=do, y=chl, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$do), color = "Do Mean Trendline"), linetype = "dashed
+") +
+geom_vline(aes(xintercept = median(ag_df_CR$do), color = "Do Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Do Mean Trendline" = "orange", "Do Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Do vs. Chl") +
+labs(color = "Legend Title")
+
+#Do vs. Del_phy
+ag_df_CR %>%
+ggplot(aes(x=do, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$do), color = "Do Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$do), color = "Do Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Do Mean Trendline" = "orange", "Do Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Do Mean Trendline", "Do Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Do vs. Del_phy") +
+labs(color = "Legend Title")
+
+#Turb vs. Chl
+ag_df_CR %>%
+ggplot(aes(x=turb, y=chl, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$turb), color = "Turb Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$turb), color = "Turb Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Turb Mean Trendline" = "orange", "Turb Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Turb vs. Chl") +
+labs(color = "Legend Title")
+
+
+#Turb vs. Phy
+ag_df_CR %>%
+ggplot(aes(x=turb, y=phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$turb), color = "Turb Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$turb), color = "Turb Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Turb Mean Trendline" = "orange", "Turb Median Trendline" = "brown"),
+breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline"),
+labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 1, 1, 1, 1 ,1)
+))) +
+ggtitle("Turb vs. Phy") +
+labs(color = "Legend Title")
+
+#Turb vs. Del_phy
+ag_df_CR %>%
+ggplot(aes(x=turb, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$turb), color = "Turb Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$turb), color = "Turb Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Turb Mean Trendline" = "orange", "Turb Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Turb Mean Trendline", "Turb Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 1, 1, 1, 1 ,1)
+))) +
+ggtitle("Turb vs. Del_phy") +
+labs(color = "Legend Title")
+
+#Salinity vs. Phy
+ag_df_CR %>%
+ggplot(aes(x=Salinity, y=phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$Salinity), color = "Salinity Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Salinity), color = "Salinity Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Phy Mean Trendline" = "blue", "Phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Salinity Mean Trendline" = "orange", "Salinity Median Trendline" = "brown"),
+breaks = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline"),
+labels = c("Points", "Phy Mean Trendline", "Phy Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Salinity vs. Phy") +
+labs(color = "Legend Title")
+
+#Salinity vs. Chl
+ag_df_CR %>%
+ggplot(aes(x=Salinity, y=chl, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$Salinity), color = "Salinity Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Salinity), color = "Salinity Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Salinity Mean Trendline" = "orange", "Salinity Median Trendline" = "brown"),
+breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline"),
+labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Salinity vs. Chl") +
+labs(color = "Legend Title")
+
+
+
+#Salinity vs. Del_phy
+
+ag_df_CR %>%
+ggplot(aes(x=Salinity, y=del_phy, color = "Points")) +
+geom_point() +
+geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+geom_vline(aes(xintercept = mean(ag_df_CR$Salinity), color = "Salinity Mean Trendline"), linetype = "dashed") +
+geom_vline(aes(xintercept = median(ag_df_CR$Salinity), color = "Salinity Median Trendline"), linetype = "dashed") +
+scale_color_manual(values = c("Points" = "red",
+"Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green",
+"Best Fit Line" = "purple",
+"Salinity Mean Trendline" = "orange", "Salinity Median Trendline" = "brown"),
+breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline"),
+labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline",
+"Best Fit Line", "Salinity Mean Trendline", "Salinity Median Trendline")) +
+guides(color = guide_legend(override.aes = list(
+shape = c(19, NA, NA, NA, NA, NA),
+linetype = c(0, 0, 0, 1, 1 ,1)
+))) +
+ggtitle("Salinity vs. Del_phy") +
+labs(color = "Legend Title")
+
+
+# Phy vs. Chl
+ag_df_CR %>% 
+  ggplot(aes(x=phy, y=chl, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Chl Mean Trendline" = "blue", "Chl Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Phy Mean Trendline" = "orange", "Phy Median Trendline" = "brown"), 
+                     # breaks = c("Points", "Chl Mean Trendline", "Chl Median Trendline", 
+                     #            "Best Fit Line", "Phy Mean Trendline", "Phy Median Trendline"),
+                     labels = c("Points", "Chl Mean Trendline", "Chl Median Trendline", 
+                                "Best Fit Line", "Phy Mean Trendline", "Phy Median Trendline")) +
+  guides(color = guide_legend(override.aes = list(
+    shape = c(19, NA, NA, NA, NA, NA),
+    linetype = c(0, 0, 0, 1, 1 ,1)
+  ))) +
+  ggtitle("Phy vs. Chl") +
+  labs(color = "Legend Title")
+
+# Phy vs. Del_phy
+ag_df_CR %>% 
+  ggplot(aes(x=phy, y=del_phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$phy), color = "Phy Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$phy), color = "Phy Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Del_phy Mean Trendline" = "blue", "Del_phy Median Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Phy Mean Trendline" = "orange", "Phy Median Trendline" = "brown"), 
+                     breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Phy Mean Trendline", "Phy Median Trendline"),
+                     labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Phy Mean Trendline", "Phy Median Trendline")) +
+  # guides(color = guide_legend(override.aes = list(
+  #   shape = c(19, NA, NA, NA, NA, NA),
+  #   linetype = c(0, 0, 0, 1, 1 ,1)
+  # ))) +
+  ggtitle("Phy vs. Del_phy") +
+  labs(color = "Legend Title")
+
+# Chl vs. Del_phy
+ag_df_CR %>% 
+  ggplot(aes(x=chl, y=del_phy, color = "Points")) + 
+  geom_point() +
+  geom_hline(aes(yintercept = mean(ag_df_CR$del_phy), color = "Del_phy Mean Trendline"), linetype = "dashed") +
+  geom_hline(aes(yintercept = median(ag_df_CR$del_phy), color = "Del_phy Median Trendline"), linetype = "dashed") +
+  geom_smooth(aes(color = "Best Fit Line"), method = "lm", se = FALSE) +
+  geom_vline(aes(xintercept = mean(ag_df_CR$chl), color = "Chl Mean Trendline"), linetype = "dashed") +
+  geom_vline(aes(xintercept = median(ag_df_CR$chl), color = "Chl Median Trendline"), linetype = "dashed") +
+  scale_color_manual(values = c("Points" = "red", 
+                                 "Del_phy Mean Trendline" = "blue", "Del_phy Mean Trendline" = "green", 
+                                 "Best Fit Line" = "purple", 
+                                 "Chl Mean Trendline" = "orange", "Chl Median Trendline" = "brown"), 
+                     breaks = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Chl Mean Trendline", "Chl Median Trendline"),
+                     labels = c("Points", "Del_phy Mean Trendline", "Del_phy Median Trendline", 
+                                "Best Fit Line", "Chl Mean Trendline", "Chl Median Trendline")) +
+  # guides(color = guide_legend(override.aes = list(
+  #   shape = c(19, NA, NA, NA, NA, NA),
+  #   linetype = c(0, 0, 0, 1, 1 ,1)
+  # ))) +
+  ggtitle("Chl vs. Del_phy") +
+  labs(color = "Legend Title")
+
+
+
+
+
+#median: do 0.5 quantile regression
+
+
+
+
+```
 
 #EDM UNIVARIATE
 
@@ -1700,10 +3137,23 @@ control f w/ pacf
 #Enteroccus 
 ```{r}
 
+cmap.Enteroccus.del_phy <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.Enteroccus.phy <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "Enteroccus", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.Enteroccus.chl <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "Enteroccus", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+#Surrogates
+
+
+Surr.cmap.Enteroccus.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.Enteroccus.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Enteroccus", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.Enteroccus.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Enteroccus", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
 
 
 ```
@@ -1713,9 +3163,21 @@ cmap <- CCM(dataFrame = ag_CR_bacteria, E = 0, Tp = 0, columns = "Enteroccus", t
 ```{r}
 
 
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.E_coli.del_phy <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.E_coli.phy <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.E_coli.chl <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+
+
+Surr.cmap.E_coli.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "E_coli", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.E_coli.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "E_coli", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.E_coli.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "E_coli", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
 
 
 ```
@@ -1729,10 +3191,21 @@ cmap <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "E_coli", targe
 ```{r}
 
 
-cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.TSS.del_phy <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-?
+
+cmap.TSS.phy <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.TSS.chl <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.TSS.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.TSS.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.TSS.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Total Suspended Solids (mg/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
 
 ```
 
@@ -1744,11 +3217,20 @@ cmap <- CCM(dataFrame = ag_CR_secchi, E = 4, Tp = 4, columns = "Total Suspended 
 ```{r}
 
 
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.Ammonium.del_phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 
+cmap.Ammonium.phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.Ammonium.chl <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.Ammonium.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.Ammonium.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.Ammonium.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 ```
 
 #"Nitrate+nitrite (uM)"
@@ -1756,9 +3238,18 @@ cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Ammonium (uM)
 ```{r}
 
 
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.nitrate_nitrite.del_phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.nitrate_nitrite.phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.nitrate_nitrite.chl <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.nitrate_nitrite.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.nitrate_nitrite.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.nitrate_nitrite.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Nitrate+nitrite (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 
 ```
@@ -1768,9 +3259,18 @@ cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Nitrate+nitri
 ```{r}
 
 
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.phosphate.del_phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.phosphate.phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.phosphate.chl <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.phosphate.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.phosphate.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.phosphate.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Phosphate (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 
 ```
@@ -1779,13 +3279,40 @@ cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phosphate (uM
 ```{r}
 
 
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.phosphorus.del_phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.phosphorus.phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
+cmap.phosphorus.chl <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.phosphorus.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.phosphorus.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.phosphorus.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
+#Phaeophytin
 
+
+#Total phosphorus (uM)
+```{r}
+
+
+cmap.Phaeophytin.del_phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phaeophytin (ug/L)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.Phaeophytin.phy <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phaeophytin (ug/L)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.Phaeophytin.chl <- CCM(dataFrame = ag_CR_nutrients, E = 4, Tp = 4, columns = "Phaeophytin (ug/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.Phaeophytin.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Phaeophytin (ug/L)", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.Phaeophytin.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Phaeophytin (ug/L)", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.Phaeophytin.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Phaeophytin (ug/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+```
 
 
 ###CAMCSO
@@ -1926,8 +3453,6 @@ All <- merge(All, CAM017, by = "Date", all = TRUE)
 All <- All %>%
   rename(CAM017MG = MG)
 
-
-
 ```
 
 ```{r}
@@ -1943,9 +3468,19 @@ All <- na.omit(All)
 
 ```{r}
 
-cmap< - CCM(dataFrame = ag_Logan, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.alt.del_phy < - CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyAltimeterSetting", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.alt.chl <- CCM(dataFrame = ag_Logan, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.alt.phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.alt.del_phy < - CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyAltimeterSetting", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.alt.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.alt.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 0, columns = "HourlyAltimeterSetting", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
 
 ```
 
@@ -1953,69 +3488,72 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 0, columns = "HourlyAltimeterSetti
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.drybulb.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.drybulb.chl <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.drybulb.phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.drybulb.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.drybulb.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.drybulb.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyDryBulbTemperature", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
 
 #HourlyPrecipitation
 ```{r}
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.precip.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.precip.chl <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-```
+cmap.precip.phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-#HourlyPressureChange #SKIP
+Surr.cmap.precip.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-```{r}
+Surr.cmap.precip.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureChange", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+Surr.cmap.precip.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureChange", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-```
-
-#HourlyPressureTendency #SKIP
-
-```{r}
-
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureTendency", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPressureTendency", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
-
 
 #HourlyRelativeHumidity
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyRelativeHumidity", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.humidity.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyRelativeHumidity", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = " HourlyRelativeHumidity", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.humidity.chl <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = " HourlyRelativeHumidity", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.humidity.phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = " HourlyRelativeHumidity", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.humidity.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyRelativeHumidity", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.humidity.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = " HourlyRelativeHumidity", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.humidity.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = " HourlyRelativeHumidity", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
-
-
-#HourlySeaLevelPressure #SKIP 
-```{r}
-
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlySeaLevelPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlySeaLevelPressure", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
-
-```
-
 
 #HourlyStationPressure
 ```{r}
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.station.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.station.chl <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.station.phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.station.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.station.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.station.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
 
@@ -2024,19 +3562,36 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressur
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.visibility.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.visibility.phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
+cmap.visibility.chl <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyVisibility", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.visibility.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyVisibility", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+Surr.cmap.visibility.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyVisibility", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.visibility.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyVisibility", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 ```
 
 #HourlyWindDirection - could be matter but direction of wind may not tell how wind is pushing around in charles around. Dan Li. Andy? 
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.wind_direction.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.wind_direction.phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.wind_direction.chl <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.wind_direction.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.wind_direction.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.wind_direction.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyWindDirection", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
 
@@ -2044,9 +3599,31 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindDirection"
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.wind_gust.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.wind_gust.phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.wind_gust.chl <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.wind_gust.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.wind_gust.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.wind_gust.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyWindGustSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+
+#Correlations 
+
+windspeed.phy.corr <- cor(cmap.windspeed.phy)[1, 3]
+windspeed.del_phy.corr <- cor(cmap.windspeed.del_phy)[1, 3]
+windspeed.chl.corr <- cor(cmap.windspeed.chl)[1, 3]
+
+#Surrogate Correlations
+
+Surr.windspeed.phy.corr <- cor(Surr.cmap.windspeed.phy)[1, 3]
+Surr.windspeed.del_phy.corr <- cor(Surr.cmap.windspeed.del_phy)[1, 3]
+Surr.windspeed.chl.corr <- cor(Surr.cmap.windspeed.chl)[1, 3]
+
 
 ```
 
@@ -2054,12 +3631,1076 @@ cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindGustSpeed"
 
 ```{r}
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.windspeed.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
-cmap <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+cmap.windspeed.phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+cmap.windspeed.chl <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+#SURROGATE
+
+Surr.cmap.windspeed.del_phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.windspeed.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+Surr.cmap.windspeed.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyWindSpeed", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
+
+#Correlations 
+
+windspeed.phy.corr <- cor(cmap.windspeed.phy)[1, 3]
+windspeed.del_phy.corr <- cor(cmap.windspeed.del_phy)[1, 3]
+windspeed.chl.corr <- cor(cmap.windspeed.chl)[1, 3]
+
+#Surrogate Correlations
+
+Surr.windspeed.phy.corr <- cor(Surr.cmap.windspeed.phy)[1, 3]
+Surr.windspeed.del_phy.corr <- cor(Surr.cmap.windspeed.del_phy)[1, 3]
+Surr.windspeed.chl.corr <- cor(Surr.cmap.windspeed.chl)[1, 3]
+
+
+
 
 ```
 
+
+
+
+```{r}
+#1 is get the tau/Tp sorted
+
+
+But when we get to multivariate, can include the seasonal cycle:
+
+yday(as.Date("2024-03-01"))
+
+df_example <- data.frame(Date=seq(as.Date("2015-01-01"),by=1,length.out=3300))
+df_example <- df_example %>% mutate(yday = yday(Date))
+head(df_example)
+df_example <- df_example %>% mutate(sin_season = sin(2*pi*yday/365))
+df_example %>% ggplot(aes(x=Date,y=sin_season)) + geom_line()
+
+cycle <- df_example 
+
+
+```
+
+#FIND CRITICAL VALUES 
+
+```{r}
+critical.r <- function( n, alpha = .05 ) {
+  df <- n - 2
+  critical.t <- qt(alpha/2, df, lower.tail = F)
+  critical.r <- sqrt( (critical.t^2) / ( (critical.t^2) + df ) )
+  return(critical.r)
+}
+# Example usage: Critical correlation coefficient at sample size of n = 100
+critical.r( 100 )
+
+
+```
+
+#EDM UNIVARIATE
+
+# EDM
+
+## EDM Uni-variate Analysis
+
+
+
+## EDM 9-12 PHY
+
+```{r}
+
+#Without NA Values
+
+morndf_CR <- readRDS("morndf_CR.rds")
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(morndf_CR)
+
+print(last_value)
+
+```
+
+```{r}
+lib_ins <- c(1,1084) # data up through end of 2022; this is the training set
+lib_oos <- c(1085,1258) # leave this alone until we're nearly done with the project
+
+rho_E <- EmbedDimension(dataFrame = morndf_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+```
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = morndf_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+###Predict Nonlinear 
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "phy", target = "phy",
+                                    E=3,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+
+
+## EDM 9-12 1st Diff PHY
+
+```{r}
+
+#Without NA Values
+
+morndf_CR <- na.omit(morndf_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(morndf_CR)
+
+print(last_value)
+
+```
+
+```{r}
+
+rho_E <- EmbedDimension(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+
+#rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+#lib = "1 1075", pred = "1076 1223", showPlot = TRUE) #lib train, #pred is pred 
+
+#lib = "1 100 101 200 301 400", - leaving one out
+
+```
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+###Predict Nonlinear 
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+                                    E=8,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+
+
+## EDM 9-12 CHL
+
+
+
+```{r}
+
+#Without NA Values
+
+morndf_CR <- na.omit(morndf_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(morndf_CR)
+
+print(last_value)
+
+```
+
+```{r}
+
+rho_E <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+
+#rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+#lib = "1 1075", pred = "1076 1223", showPlot = TRUE) #lib train, #pred is pred 
+
+#lib = "1 100 101 200 301 400", - leaving one out
+
+```
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = morndf_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+###Predict Nonlinear 
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "chl", target = "chl",
+                                    E=9,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = morndf_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+## EDM Daily CHL
+
+```{r}
+
+#Without NA Values
+ag_df_CR <- readRDS("ag_df_CR.rds")
+ag_df_CR <- na.omit(ag_df_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(ag_df_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(ag_df_CR)
+
+print(last_value)
+
+```
+
+
+
+### Optimal Embedding Dimension
+
+-   rho_E
+
+    -   E
+
+    -   Rho
+
+
+
+```{r}
+lib_ins <- c(1,1014) # data up through end of 2022; this is the training set
+lib_oos <- c(1025,1189) # leave this alone until we're nearly done with the project
+
+rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+
+#rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+#lib = "1 1075", pred = "1076 1223", showPlot = TRUE) #lib train, #pred is pred 
+
+#lib = "1 100 101 200 301 400", - leaving one out
+
+```
+
+"At a daily time-scale, EDM predictions do not beat the strong day-to-day autocorrelation in the signal." This is no surprise. Let's look again with a larger tau, informed by the previous ACF analysis; we saw a signal somewhere in the window of 4 days - 1 week.
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                                    E=5,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+1 week:
+
+```{r}
+tau_i <- 7
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                        tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+```{r}
+
+rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+                                    E=5,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+
+
+## EDM Daily PHY
+
+
+```{r}
+
+#Without NA Values
+
+ag_df_CR <- na.omit(ag_df_CR) 
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(ag_df_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+# Find the last value 
+last_value <- nrow(ag_df_CR)
+
+print(last_value)
+
+```
+
+
+ 
+
+
+### Optimal Embedding Dimension
+
+-   rho_E
+
+    -   E
+
+    -   Rho
+
+
+
+```{r}
+
+rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(color="blue") +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1)
+  
+```
+
+"At a daily time-scale, EDM predictions do not beat the strong day-to-day autocorrelation in the signal." This is no surprise. Let's look again with a larger tau, informed by the previous ACF analysis; we saw a signal somewhere in the window of 4 days - 1 week.
+
+4-days:
+
+```{r}
+tau_i <- 4
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+**E = 6 here?**
+
+```{r}
+rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                                    E=4,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  # ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+1 week:
+
+```{r}
+tau_i <- 7
+
+# Same as before but using a larger tau and setting Tp = tau
+
+rho_E_tau_i_0 <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                        tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+
+# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
+preds_AR <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR <- ComputeError(preds_AR$predictions$Observations,
+                         preds_AR$predictions$Predictions)
+
+
+rho_E_tau_i %>%
+  ggplot(aes(x=E,y=rho)) + 
+  geom_line(aes(color="correct")) +
+  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,1) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+  
+```
+
+```{r}
+
+rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+                                    E=2,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
+                                    lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
+
+preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+
+stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
+                         preds_AR1$predictions$Predictions)
+
+
+rho_theta_tau_i %>%
+  ggplot(aes(x=Theta,y=rho)) + 
+  geom_line() +
+  # geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
+  ylim(0,0.5) +
+  labs(title=paste0("Simplex with tau = ",tau_i))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Prediction Decay
+
+-   rho_Tp
+
+    -   Tp
+
+    -   Rho
+
+```{r}
+
+rho_Tp <- PredictInterval(dataFrame = ag_df_CR, lib = lib_ins, pred = lib_ins, target = "chl",
+columns = "chl", E = 6)
+#long-term memory in system (ACF), long term -persistent auto-correlation 
+
+
+```
+
+### S-Map
+
+-   rho_theta_e3
+
+    -   Theta
+
+    -   Rho
+
+```{r}
+
+rho_theta_e3 = PredictNonlinear(dataFrame = ag_df_CR, columns = "chl",
+target = "chl", lib = lib_ins, pred = lib_ins, E = 4)
+
+```
+
+### **Evaluate Simplex Prediction**
+
+-   ag_df_CRPredict
+
+    -   Observations
+
+    -   Predictions
+
+    -   Pred_Variance
+
+```{r}
+
+ag_df_CRPredict <- Simplex(dataFrame = ag_df_CR,lib = lib_ins, pred = lib_ins, pred = "1076 1223", target = "chl",
+columns = "chl", E = 4)
+
+#S-Map = Theta
+
+
+
+```
+
+```{r}
+
+ ComputeError(ag_df_CRPredict$Observations, ag_df_CRPredict$Predictions)
+ 
+```
+
+### Evaluate S-Map
+
+It can be advantageous to combine different time series to create the phase-space embedding, providing they are observed from the same system.
+
+-   Smap
+
+    -   predictions
+
+    -   coefficents
+
+    -   singularvalues
+
+    -   ∂chl/∂chl(t-1,2,3,4)
+
+**#Where does TentMapNoise come from? SMapPredict?**
+
+**Tentmap Noise = Theta?**
+
+**What is columns?**
+
+```{r}
+
+ #If θ= 0, all library points have the same weight regardless of the local state of the predictee; 
+
+smap = SMap(dataFrame = ag_df_CR, lib = lib_ins, pred = lib_ins, target = "chl",
+columns = "chl", E = 4, theta = 5)
+
+#if h > θ, the forecast given by the S-map depends on the local state of the predictee, and thus produces locally different fittings.
+#smap = SMap(dataFrame = ag_df_CR, lib = "1 1075", pred = "1076 1223", target = "chl",
+#columns = "chl", E = 2, theta = 0)
+
+```
+
+```{r}
+head(cbind(smap$predictions, smap$coefficients), 2)
+
+tail(cbind(smap$predictions, smap$coefficients))
+
+
+```
+
+### Convergent Cross Mapping (CCM)
+
+find out multivariate
+CSO - reflects and episodic threshold reponse to weather
+```{r}
+
+
+cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 2, columns = "chl", target = "turb", libSizes = "10 70 5", sample = 100, showPlot = TRUE)
+
+
+
+#tp - 2012 paper 
+```
+
+
+
+
+# EDM Mulit-variate Analysis
+
+### Generalized Takens Theorem
+
+smplx_3CR
+
+
+
+multivar 
+```{r}
+
+multivar <- Simplex(Embedded = TRUE, columns = c("phy"))
+
+
+
+
+
+
+```
+
+
+
+
+
+
+### Save as New
+
+```{r}
+block_4CR <- smap$coefficients  
+
+_new_names <- c(   "date",   "C0",   "t-0",   "t-1",   "t-2",   "t-3" )  
+
+block_4CR <- block_4CR %>%   set_names(v_new_names)  
+
+head(block_4CR)
+```
+
+**What is target? t-0?**
+
+smplx_3species
+
+-   observations
+
+-   predicitons
+
+-   pred variance
+
+```{r}
+
+
+smplx_3CR = Simplex(dataFrame = block_4CR, lib = "1 74", pred = "75 149", E = 4, columns = "t-0 t-1 t-2 t-3", target = "t-0", embedded = TRUE)
+
+err = ComputeError(smplx_3CR$Observations, smplx_3CR$Predictions)
+plot(smplx_3CR$Observations, smplx_3CR$Predictions, pch = 19, cex = 0.5,
+xlab = "Observations", ylab = "Predictions", main = "3 CR x_t")
+abline(a = 0, b = 1, lty = 2, col = "blue")
+text(-1, 1, paste(capture.output(cbind(err)), collapse = "\n"))
+```
+
+```{r}
+#**is this for one variable?**
+
+#head(ag_df_CR,3)
+
+#simplexforecasting
+
+#smplx_3CR = Simplex(dataFrame = ag_df_CR, lib = "1 100", pred = "101 190",
+#E = 2, columns = "ph Celsius chl", target = "chl", embedded = TRUE)
+#are we using all the columns?
+```
+
+Plot
+
+```{r}
+#err = ComputeError(smplx_3CR$Observations, smplx_3CR$Predictions)
+#plot(smplx_3CR$Observations, smplx_3CR$Predictions, pch = 19, cex = 0.5,
+#xlab = "Observations", ylab = "Predictions", main = "3 CR x_t")
+#abline(a = 0, b = 1, lty = 2, col = "blue")
+#text(-1, 1, paste(capture.output(cbind(err)), collapse = "\n"))
+
+```
+
+### S-Map Coefficents
+
+The Lorenz5D data.frame contains a N=5 dimensional system with F=8 from (Lorenz 1996). Here, we use SMap() to compute a 4-dimensional forecast at Tp=1:
+
+```{r}
+colnames(ag_df_CR) #pull col names
+head(ag_df_CR)
+smap_CR <- SMap(dataFrame = ag_df_CR, lib = "1 500", pred = "601 900", E = 4,
+theta = 5, columns = "chl phy ph Celsius spcond do turb", target = "chl", embedded = TRUE)
+```
+
+```{r}
+head(cbind(smap_CR$predictions, smap_CR$coefficients[, 2:6]), 3)
+
+```
+
+```{r}
+#**review w/ Deyle**
+#View(predictions)
+predictions = smap_CR$predictions
+coefficients = smap_CR$coefficients
+Time = predictions$Time
+plot(Time, predictions$Observations, type = "l", col = "blue", ylab = "chl", xlab = "",
+lwd = 2, cex.lab = 1.3, cex.axis = 1.3)
+lines(Time, predictions$Predictions, lwd = 2, col = "red")
+legend("topright", legend = c("observed", "predicted"), fill = c("blue", "red"),
+bty = "n", cex = 1.3)
+
+plot(Time, coefficients[, 6], type = "l", col = "brown", ylab = paste("", "V4/",
+"", "chl", sep = ""), xlab = "", lwd = 2, cex.lab = 1.3, cex.axis = 1.3)
+
+plot(Time, coefficients[, 5], type = "l", col = "darkgreen", ylab = paste("",
+"V3/", "", "chl", sep = ""), xlab = "", lwd = 2, cex.lab = 1.3, cex.axis = 1.3)
+
+plot(Time, coefficients[, 4], type = "l", col = "blue", ylab = paste("", "V2/",
+"", "chl", sep = ""), xlab = "", lwd = 2, cex.lab = 1.3, cex.axis = 1.3)
+
+```
+
+```{r}
+Mview = Multiview(dataFrame = df_CR, lib = "1 100", pred = "101 190", E = 3,
+columns = "chl phy ph Celsius spcond do turb", target = "chl")
+```
+
+```{r}
+
+Mview$View[which(Mview$View$rho > 0.91), ]
+
+```
+
+
+Next Steps
+
+Convergent Cross Mapping 
+All possible Covariates in one data frame as different columns
+other variables
+all the endogenous bigoeochemical and human drivers management driver and 
+- rainfall and CSOs
+know now half week to weekly time scale we see has signature 
+until we have the corrected values to keep the diff
+9 to noon 4 days negative auto, use linear s-map 
+To make forecasts: predict 1st differences and add back into data 
+prediction for tomorrow is value for tomorrow + value for today 
+
+list of measurments and list of weekly measurments
+look at Tahoe + geneva
+
+plot minutes vs. volume CSOs
+- rainfall causal associations?
+analysis: 
+same trend = synchornity
+not = one is low and flat is oneway causal  
+number at end matters, consider as correlation coeff, rho ccm at max library size
+
+look at full matrix with nutrient time series later on
+
+2 different data matrixes
+1. time-scale
+2. timespan
+
+
+#EDM MULTIVARIATE 
+
+#MULTIVIEW 
 
 
 ccm uses y to predict x, if true, x can affect y 
@@ -2077,9 +4718,8 @@ set CCM samples to 10 to see result
 #1 is get the tau/Tp sorted
 
 
-But when we get to multivariate, can include the seasonal cycle:
-
 yday(as.Date("2024-03-01"))
+
 df_example <- data.frame(seq(as.Date("2010-01-01"),by=1,length.out=3000))
 df_example <- data.frame(Date=seq(as.Date("2010-01-01"),by=1,length.out=3000))
 df_example <- df_example %>% mutate(yday = yday(Date))
@@ -2088,6 +4728,13 @@ df_example <- df_example %>% mutate(sin_season = sin(2*pi*yday/365))
 df_example %>% ggplot(aes(x=Date,y=sin_season)) + geom_line()
 
 
+if (file.exists("cycle.rds")) {
+  # If it's saved locally, load the data
+  cycle <- readRDS("cycle.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(cycle, "cycle.rds")
+}
 
 ```
 
@@ -2102,15 +4749,186 @@ critical.r <- function( n, alpha = .05 ) {
 }
 # Example usage: Critical correlation coefficient at sample size of n = 100
 critical.r( 100 )
+
+
+if (file.exists("critical.r .rds")) {
+  # If it's saved locally, load the data
+  critical.r <- readRDS("critical.r.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(critical.r , "critical.r .rds")
+}
+
+```
+
+#Multiview 
+Here, we demonstrate this idea using the Multiview() function with the 3-species data used above.
+Multiview() operates by constructing all possible embeddings of dimension E with lag up to E-1. These
+embeddings are ranked by forecast skill (rho) over the lib portion of the data. The individual forecasts for
+the top multiview embeddings are then averaged together. If multiview is not specified it is set to sqrt(C)
+where C is the number of E-dimensional combinations created from all data vectors.
+
+
+```{r}
+
+Multiview = Multiview(dataFrame = ag_df_CR, lib = "1 1174", pred = "1 1174", E = 2,D=3,
+columns = "chl ph Celsius spcond do turb Salinity", target = "phy")
+Multiview()
+test 
+E = 2
+D = 2
+E = 3
+E =5
+would get higher ceilling , exogenous 
+additional analyiss fills in mechanistcally 
+#at least E of 2, after E > 5 com sci problem
+
+
+#E is amounts of lags. univar time lags
+#D is dimension of individual multivariate models, number of vars we're taking at a time. axis to embed. 
+go oup to 2022, lib = pred 
+
+#coluumns * E = 14 
+#dimension = 5
+
+```
+View lists the various combinations of data embedding vectors used for the forecasts along with their prediction statistics.
+Predictions returns the final averaged multiview projections.
+
+
+```{r}
+
+ag_df_CR <- na.omit(ag_df_CR)
+ag_df_CR$date <- as.numeric(ag_df_CR$date)
+
+results_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 1048", pred = "1 1048", E = 2, D=3,
+columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+
+
+
+
 ```
 
 
-#EDM MULTIVARIATE 
+```{r}
+Multiview2 = Multiview(dataFrame = ag_df_CR, lib = "1 1048", pred = "1 1048", E = 3, D= 5,
+columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+Multiview2()
 
-#MULTIVIEW 
+```
+
+
+Multiview()
+test 
+E = 2
+D = 2
+E = 3
+E =5
+would get higher ceilling , exogenous 
+additional analyiss fills in mechanistcally 
+#at least E of 2, after E > 5 com sci problem
+
+
+#E is amounts of lags. univar time lags
+#D is dimension of individual multivariate models, number of vars we're taking at a time. axis to embed. 
+go oup to 2022, lib = pred 
+
+#coluumns * E = 14 
+#dimension = 5
+
+
+```{r}
+plots.dir.path <- list.files(tempdir("C:\\Users\\mfman\\AppData\\Local\\Temp\\RtmpaE80Ug"), pattern="rs-graphics", full.names = TRUE); 
+plots.png.paths <- list.files(plots.dir.path, pattern=".png", full.names = TRUE)
+```
+
+
+```{r}
+file.copy(from=plots.png.paths, to="C:/Users/mfman/OneDrive/Desktop/HAB_PLOTS")
+
+```
+
+```{r}
+#mutltiview
+
+
+
+# Find the first row number for the first date in 2023
+first_row_2023 <- which(format(ag_df_CR$date, "%Y") == "2023")[1]
+
+print(first_row_2023)
+
+
+# Check if the file exists
+if(file.exists("Multi_E2_D3.rds")) {
+  # Load the file if it exists
+  Multi_E2_D3 <- readRDS("Multi_E2_D3.rds")
+} else {
+  # If the file does not exist, create Multi_E2_D3
+  Multi_E2_D3 <- Multiview(dataFrame = ag_df_CR, 
+                           lib = "1 1014", pred = "1 1014", # in-sample
+                           # lib = "1 1014", pred = "1015 1189", # out-sample
+                           trainLib = TRUE,
+                           E = 2, D=3,
+                           tau = -7, Tp = 7,
+                            columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+  # Save Multi_E2_D3 to file
+  saveRDS(Multi_E2_D3, "Multi_E2_D3.rds")
+}
+
+
+# Check if the file exists
+if(file.exists("Mutliview_E2D5.rds")) {
+  # Load the file if it exists
+  Multi_E3_D5 <- readRDS("Mutliview_E2D5.rds")
+} else {
+  # If the file does not exist, create Multi_E2_D3
+  Multi_E3_D5 <- Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
+                            columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+  # Save Multi_E2_D3 to file
+  saveRDS(Multi_E2_D3, "Mutliview_E2D5.rds")
+}
+
+
+
+Multi_E2_D3 <- "Mutliview_e2d3.rds"
+if(!file.exists("Multi_E2_D3.rds")){
+results_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
+columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy") <<
+    results_1 <- Blah Blah
+    save(Multi_E2_D3, file = "Multi_E2_D3.rds")
+} else{
+  load(Multi_E2_D3)
+}
+
+Multi_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
+columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+
+if (file.exists("CR2023.rds")) {
+  # If it's saved locally, load the data
+  CR2023 <- readRDS("CR2023.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1sMKGzW71qErP8DIrxWDvlgqN3o9MrprLjjAFGsOie3I/edit?usp=sharing')
+  saveRDS(CR2023, "CR2023.rds")
+  
+}
+```
+
 
 #HISTOGRAM
 
+
+
+
+ccm uses y to predict x, if true, x can affect y 
+ccm wraps (Simplex target = x, columns = y)
+
+
+
+multivariate 
+Simplex ( Embedded = True, columns = c("x1, "x2)) 
+set CCM samples to 10 to see result 
 
 
 

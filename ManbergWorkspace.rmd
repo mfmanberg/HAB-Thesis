@@ -2,161 +2,217 @@
 title: "ManbergWorkspace"
 output: html_document
 date: "2023-10-23"
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
-left join: library(dplyr) result <- left_join(x, y, by = "common_column")
-A left join is used to join the table by selecting all the records from the first dataframe and only matching records in the second dataframe.
 
-Read sheet: 
-x <- read_sheet('https://docs.google.com/spreadsheets/d/1J9-ZpmQT_oxLZ4kfe5gRvBs7vZhEGhSCIpNS78XOQUE/edit?usp=sharing')
+left join: library(dplyr) result \<- left_join(x, y, by =
+"common_column") A left join is used to join the table by selecting all
+the records from the first dataframe and only matching records in the
+second dataframe.
 
-Packages: 
-# Install from CRAN
-install.packages("tidyverse")
-install.packages("lubridate")
-install.packages('googlesheets4')
+Read sheet: x \<-
+read_sheet('<https://docs.google.com/spreadsheets/d/1J9-ZpmQT_oxLZ4kfe5gRvBs7vZhEGhSCIpNS78XOQUE/edit?usp=sharing>')
+
+Packages: \# Install from CRAN install.packages("tidyverse")
+install.packages("lubridate") install.packages('googlesheets4')
+
+"pairwise" - fill w/ NA
+
+cross-Join?
+
+remove - rm() rm(data_1, data_2, data_3) run button dissapears w/ extra
+end of chunk, + save str -\> structure class() -\> tells you class
+sessionInfo()
+
+#Generate Days 2015 - 2023
+
+```{r}
+start = as.Date("2015/03/23")
+full <- seq(start, by='1 day', length=3059)
+full
+#create data frame
+date.df <- data.frame(full)
+
+# Add empty column
+df2 <- date.df %>%
+  add_column(empty_column = NA)
+date.df
+
+# Find rows where df_CR$date does not match date.df$full
+new_rows <- df_CR %>%
+  filter(date != date.df$full)
+
+# Create a new row with the condition you specified
+new_row <- data.frame(date = date.df$full) 
+# Bind the new row to df_CR
+df_CR <- bind_rows(df_CR, new_row)
+
+
+```
+
+```{r}
+ts <- seq.POSIXt(as.POSIXct("2015-05-13",'%m/%d/%y'), as.POSIXct("2023-09-27",'%m/%d/%y'), by="day")
+
+ts <- seq.POSIXt(as.POSIXct("2015-05-13",'%m/%d/%y'), as.POSIXct("2023-09-27",'%m/%d/%y'), by="day")
+
+ts <- format.POSIXct(ts,'%m/%d/%y')
+
+df <- data.frame(dates = ts)
+
+ data_with_missing_times <- cross_join(df,df_CR$date, copy = copy)
+  data_with_missing_times
+
+
+```
+
+```{r}
+Finaltry <- df_CR %>%
+      complete(te = seq.POSIXt(min(df_CR$date), max(df_CR$date), by = "day"), 
+               df_CR$hour, df_CR$minute, df_CR$chl, df_CR$phy)
+```
+
+<https://www.rdocumentation.org/packages/padr/versions/0.6.2/topics/pad>
+
+Left Join
+
+```{r}
+#left join using dplyr
+
+
+pad(df_CR)
+```
+
+#Generate Missing Values
+
+```{r}
+with(df_CR, value[match(full, df_CR$date)])
+     
+```
+
+#If not match to CR, enter value
+
+#match data
+
+```{r}
+with(partial, value[match(full, date)])
+```
+
+#Combine Result w/ Dates
+
+```{r}
+data.frame(Date=full, value=with(partial, value[match(full, date)]))
+```
+
+#Deyle Notes
+
+```{r}
+#Define f_date_bin
+
+start_date <- "2015-05-13"
+end_date <- "2023-09-27"
+
+v_dates_2mo <- expand_grid(Year=2015:2020,Month=seq(1,12,by=2)) %>%
+  mutate(Day=1) %>%
+  mutate(Date=(make_date(Year,Month,Day))) %>%
+  pull(Date)
+  
+v_dates_3mo <- expand_grid(Year=2015:2020,Month=seq(1,12,by=3)) %>%
+  mutate(Day=1) %>%
+  mutate(Date=(make_date(Year,Month,Day))) %>%
+  pull(Date)
+
+f_date_bin <- function(df,v_dates,date_col=Date,binnable_col=everything()){
+  
+  df_binned <- df %>%
+    mutate({{date_col}} := cut.Date({{date_col}},breaks=v_dates)) %>%
+    mutate({{date_col}} := ymd({{date_col}})) %>%
+    right_join(tibble("{{date_col}}" := v_dates)) %>%
+    group_by({{date_col}}) %>%
+    summarise(across(binnable_col,mean))
+    
+    
+ df_binned <- df %>%
+     mutate({{date_col}} := cut.Date({{date_col}},breaks=v_dates)) %>%
+     mutate({{date_col}} := ymd({{date_col}})) %>%
+   right_join(tibble("{{date_col}}" := v_dates))
+  
+  return(df_binned) 
+}
+
+df_CR %>%
+  pull(chl) %>%
+  table()
+
+```
+
+```{r}
+#Add image
+knitr::include_graphics("C:/images/data_structures.png")
+```
+error parsing -> chunks left open
+
+https://www.rstudio.com/wp-content/uploads/2015/02/data-wrangling-cheatsheet.pdf
+
+Names(CR_bacteria) <- pull names 
+
+
+# Add empty column
+MergedMWRACSO$Volume = NA
+MergedMWRACSO$TotalMinutes = NA
 
 
 
-OLD googlesheets
+#CR_bacteria %>% unnest(Enterococcus)
 
+# Unlist the "E_coli" column
+#CR_bacteria_011$E_coli <- unlist(CR_bacteria_011$E_coli)
+
+# Convert the unlisted values to numeric
+#CR_bacteria_011$E_coli <- as.numeric(CR_bacteria_011$E_coli)
+
+#CR_bacteria_011 <- CR_bacteria_011 %>%
+ # mutate_if(is.character, as.numeric)
+ 
+ ```{r}
+MWRAMap_stations <- read_sheet('https://docs.google.com/spreadsheets/d/1UYcDAnvZI8dbvf5ENLHLA8HRtX-Y_epLCfOeUsCB8yQ/edit?usp=sharing', range = 'Map_stations')
+
+```
 
 ```{r}
 
-#CR2023
+#Combine DFs
 
-if (file.exists("CR2023.rds")) {
-  # If it's saved locally, load the data
-  CR2023 <- readRDS("CR2023.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-  CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1R_HdqGuVMlfRyVPCzOw3CvbOjXDQfzFtDCMvKdj5vXU/edit?usp=sharing')
-  saveRDS(CR2023, "CR2023.rds")
-}
-
-#CR2022
-
-if (file.exists("CR2022.rds")) {
-  # If it's saved locally, load the data
-  CR2022 <- readRDS("CR2022.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-CR2022 <- read_sheet('https://docs.google.com/spreadsheets/d/1equdXHt4d-2s3r8YSsuHfpLufeRmGqno-SJqhcEwuNY/edit?usp=sharing')
-  saveRDS(CR2022, "CR2022.rds")
-}
-
-#CR2021
-
-if (file.exists("CR2021.rds")) {
-  # If it's saved locally, load the data
-  CR2021 <- readRDS("CR2021.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-CR2021 <- read_sheet('https://docs.google.com/spreadsheets/d/1CBzAD9uot_SPkY-JV-lJB6FSxSjlgXIS8A4jSY9SJjE/edit?usp=sharing')
-  saveRDS(CR2021, "CR2021.rds")
-}
+CR_bacteria <-  right_join(CR_bacteria , MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
 
 
-#CR2020
+CR_physical <- right_join(CR_physical, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
+                          
+CR_secchi <- right_join(CR_secchi, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
 
-
-if (file.exists("CR2020.rds")) {
-  # If it's saved locally, load the data
-  CR2020 <- readRDS("CR2020.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-CR2020 <- read_sheet('https://docs.google.com/spreadsheets/d/1fOV7JfJwLxddCaTsR0vkUodOZup4Y6HwVthMLzexe-I/edit?usp=sharing')
-  saveRDS(CR2020, "CR2020.rds")
-}
-
-
-#CR2019
-
-if (file.exists("CR2019.rds")) {
-  # If it's saved locally, load the data
-  CR2019 <- readRDS("CR2019.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-CR2019 <- read_sheet('https://docs.google.com/spreadsheets/d/1WGTUQ7F8wadO4RJ6PsfRsEnvwqNMdnAsdX71xqI9L-4/edit?usp=sharing')
-  saveRDS(CR2019, "CR2019.rds")
-}
-
-
-#CR2018
-
-
-if (file.exists("CR2018.rds")) {
-  # If it's saved locally, load the data
-  CR2018 <- readRDS("CR2018.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-CR2018 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
-  saveRDS(CR2018, "CR2018.rds")
-}
-
-
-#CR2017
-
-if (file.exists("CR2017.rds")) {
-  # If it's saved locally, load the data
-  CR2017 <- readRDS("CR2018.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-CR2017 <- read_sheet('https://docs.google.com/spreadsheets/d/17AX8HNLXUCYz6YJIHRnb_rrKuzDudyAEq5WEhbSxOFQ/edit?usp=sharing')
-  saveRDS(CR2017, "CR2017.rds")
-}
-
-#CR2016
-
-
-if (file.exists("CR2016.rds")) {
-  # If it's saved locally, load the data
-  CR2016 <- readRDS("CR2016.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-CR2016 <- read_sheet('https://docs.google.com/spreadsheets/d/1rEOGM2H9cgVbFgVkIQZjIyzzl03fIywtkxBNg7GmXrY/edit?usp=sharing')
-  saveRDS(CR2017, "CR2016.rds")
-}
-
-
-#CR2015
-
-if (file.exists("CR2015.rds")) {
-  # If it's saved locally, load the data
-  CR2015 <- readRDS("CR2015.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-CR2015 <- read_sheet('https://docs.google.com/spreadsheets/d/11I8RQnOgZ9xmVEpaTVM_ELQZdTTp6T_305nwxkNI92I/edit?usp=sharing')
-  saveRDS(CR2015, "CR2015.rds")
-}
-
+CR_nutrients <- right_join(CR_nutrients, MWRAMap_stations,  by = c("Station ID"  =  "STAT_ID" ))
 
 
 
 ```
 
 
-#using simplex 
-
 ```{r}
 
-lib_ins <- c(1,992) # data up through end of 2022; this is the training set
-lib_oos <- c(993,1138) # leave this alone until we're nearly done with the project
 
-cmap <- Simplex(dataFrame = ag_df_CR, lib = lib_ins, pred = lib_ins, target = "del_phy", columns = "ph", Tp = 0, E = 4)
-
-head(cmap)
-plot(cmap)
-
-
-ag_df_CRPredict <- Simplex(dataFrame = ag_df_CR, pred = "1076 1223", target = "chl",
-columns = "chl", E = 4)
-
-cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 0, columns = "ph", target = "del_phy", , sample = 10, showPlot = TRUE)
+CR_bacteria <- data.frame(lapply(CR_bacteria, as.character))
+CR_physical <- data.frame(lapply(CR_physical, as.character))
+CR_secchi <- data.frame(lapply(CR_secchi, as.character))
+CR_nutrients <- data.frame(lapply(CR_nutrients, as.character))
 
 ```
 
 
+```{r}
+# Assuming your data frame is named MWRACSOFinal and the column with CSO IDs is named CSO_ID
+CR_bacteria_counts <- as.data.frame(table(CR_bacteria$Station.ID))
 
-
+```
 
 
