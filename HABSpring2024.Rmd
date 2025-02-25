@@ -7,20 +7,15 @@ editor_options:
 ---
 
 
-#Library
 
 ```{r}
-library(tidyverse)
-library(googlesheets4)
-library(oce)
-library(padr)
-library(rEDM)
-library(ggplot2)
-library(zoo)
-library(quantreg)
+library(dplyr)
 
 ```
 
+
+
+#TABLE AG_DF_CR
 
 ```{r}
 # Assuming 'ag_df_CR' is your data frame
@@ -88,8 +83,32 @@ print(results_df)
 
 ```
 
+#TABLE All.Logan
 
 
+
+
+#TABLE All.CR_nutrients
+
+#TABLE All.bacteria
+
+
+
+
+
+#Library
+
+```{r}
+library(tidyverse)
+library(googlesheets4)
+library(oce)
+library(padr)
+library(rEDM)
+library(ggplot2)
+library(zoo)
+library(quantreg)
+
+```
 
 #List of all data
 ```{r}
@@ -298,6 +317,19 @@ All.CR_nutrients
 
 
 
+```{r}
+library(tidyverse)
+library(googlesheets4)
+library(oce)
+library(padr)
+library(rEDM)
+library(ggplot2)
+library(zoo)
+library(quantreg)
+
+```
+
+
 #Vignette
 
 ```{r}
@@ -485,10 +517,6 @@ ag_df_CR <-df_CR %>%
 ag_df_CR <- na.omit(ag_df_CR)
 
 
-
-ag_df_CR <- ag_df_CR %>%
-    mutate(date = as.POSIXct(date, format = "%Y-%m-%d"))
-
 if (file.exists("ag_df_CR.rds")) {
   # If it's saved locally, load the data
   ag_df_CR <- readRDS("ag_df_CR.rds")
@@ -512,11 +540,6 @@ morndf_CR <-morndf_CR %>%
    mutate(date = trunc(date,"days")) %>%
    group_by(date) %>%
   summarise(chl=mean(chl, na.rm = TRUE), phy=mean(phy, na.rm = TRUE), ph=mean(ph, na.rm = TRUE), Celsius=mean(Celsius,na.rm = TRUE), spcond=mean(spcond,na.rm = TRUE), do=mean(do,na.rm = TRUE), turb=mean(turb,na.rm = TRUE), Salinity = mean(Salinity,na.rm = TRUE))
-
-
-morndf_CR <- morndf_CR %>%
-    mutate(date = as.POSIXct(date, format = "%Y-%m-%d"))
-
 
 if (file.exists("morndf_CR.rds")) {
   # If it's saved locally, load the data
@@ -2026,6 +2049,29 @@ abline(h = c(0.3,0.6) , col = c("red","red"))
 
 ## you can check an individual value as follows
 cor(ts_phy_2021,lag(ts_phy_2021,6),use="pairwise")
+
+df_CR <- na.omit(df_CR)
+#2021
+ts_chl_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(chl)
+
+ts_phy_2021 <- df_CR %>% 
+  filter(year(date) == 2021) %>%
+  group_by(date) %>%
+  summarise(across(c("chl","phy"),mean),.groups = "keep") %>%
+  pull(phy)
+
+length(ts_chl_2021)
+acf(ts_chl_2021,lag.max = 24*30, main = " Hourly Chlorophyll ACF")
+abline(h = c(0.3,0.6) , col = c("red","red")) #change to lagmax = 30 if want days 
+#determine lag -talk to deyle?
+acf(ts_phy_2021,lag.max = 24*30, main = "Hourly Phycocanin ACF")
+abline(h = c(0.3,0.6) , col = c("red","red"))
+
+
 
 
 ```
@@ -3703,7 +3749,6 @@ critical.r( 100 )
 #Without NA Values
 
 morndf_CR <- readRDS("morndf_CR.rds")
-morndf_CR <- na.omit(morndf_CR)
 
 # Find the first row number for the first date in 2023
 first_row_2023 <- which(format(morndf_CR$date, "%Y") == "2023")[1]
@@ -3715,21 +3760,11 @@ last_value <- nrow(morndf_CR)
 
 print(last_value)
 
-lib_ins <- c(1,999) # data up through end of 2022; this is the training set
-lib_oos <- c(1000,1173) # leave this alone until we're nearly done with the project
-
-
-ag_df_CR <- ag_df_CR %>%
-    mutate(date = as.POSIXct(date, format = "%Y-%m-%d"))
-
-morndf_CR <- morndf_CR %>%
-    mutate(date = as.POSIXct(date, format = "%Y-%m-%d"))
 ```
 
 ```{r}
-morndf_CR <- na.omit(morndf_CR)
-lib_ins <- c(1,999) # data up through end of 2022; this is the training set
-lib_oos <- c(1000,1173) # leave this alone until we're nearly done with the project
+lib_ins <- c(1,1084) # data up through end of 2022; this is the training set
+lib_oos <- c(1085,1258) # leave this alone until we're nearly done with the project
 
 rho_E <- EmbedDimension(dataFrame = morndf_CR, columns = "phy", target = "phy",
 lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
@@ -3741,77 +3776,12 @@ lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred
 stats_AR <- ComputeError(preds_AR$predictions$Observations,
                          preds_AR$predictions$Predictions)
 
-# Create a dummy data frame for the legend
-dummy_data <- data.frame(E = NA, rho = NA)
 
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color = "EDM Tau = 1"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "9 AM - 12 PM Phycocanin Tau = 1 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 1", "AR = 1")) +
-  theme_minimal()
-
-#rho_E %>%
-#  ggplot(aes(x=E,y=rho)) + 
- # geom_line(color="blue") +
-#  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
-#  ylim(0,1)
-  
-```
-
-2-days:
-
-```{r}
-tau_i <- 2
-
-# Same as before but using a larger tau and setting Tp = tau
-
-rho_E_tau_i_0 <- EmbedDimension(dataFrame = morndf_CR, columns = "phy", target = "phy",
-                        tau=-tau_i,Tp=tau_i,
-lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
-
-
-rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "phy", target = "phy",
-                        tau=-tau_i,Tp=tau_i,
-                        lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
-#exclusionRadius = tau_i,  exclude 2*tau additional points in cross-val
-
-
-# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
-#preds_AR <- SMap(dataFrame = morndf_CR, columns = "phy", target = "phy",
-#lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
-preds_AR <- SMap(dataFrame = morndf_CR, columns = "phy", target = "phy",
-lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i) #lib 
-
-stats_AR <- ComputeError(preds_AR$predictions$Observations,
-                         preds_AR$predictions$Predictions)
-
-
-rho_E_tau_i %>%
+rho_E %>%
   ggplot(aes(x=E,y=rho)) + 
-  geom_line(aes(color="correct")) +
-  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
+  geom_line(color="blue") +
   geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
-  ylim(0,1) +
-  labs(title=paste0("Simplex with tau = ",tau_i))
-
-
-# Create a dummy data frame for the legend
-dummy_data <- data.frame(E = NA, rho = NA)
-
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E_tau_i_0, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color =  "Tau = 2"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "9 AM - 12 PM Phycocanin Tau = 2 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 2", "AR = 1")) +
-  theme_minimal()
-
+  ylim(0,1)
   
 ```
 
@@ -3848,43 +3818,19 @@ rho_E_tau_i %>%
   geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
   ylim(0,1) +
   labs(title=paste0("Simplex with tau = ",tau_i))
-
-
-# Create a dummy data frame for the legend
-dummy_data <- data.frame(E = NA, rho = NA)
-
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color =  "Tau = 4"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "9 AM - 12 PM Phycocanin Tau = 4 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 4", "AR = 1")) +
-  theme_minimal()
-
   
 ```
 
 ###Predict Nonlinear 
 
 ```{r}
-
-#E = 3, Exclusion Radius 
-#rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "phy", target = "phy",
- #                                   E=3,
-  #                                  tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
-   #                                 lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
-
-
 rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "phy", target = "phy",
                                     E=3,
-                                    tau=-tau_i,Tp=tau_i,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
                                     lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
-
-#preds_AR1 <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "phy",
-#lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
+preds_AR1 <- SMap(dataFrame = morndf_CR, columns = "del_phy", target = "phy",
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
 
 stats_AR1 <- ComputeError(preds_AR1$predictions$Observations,
                          preds_AR1$predictions$Predictions)
@@ -3990,7 +3936,7 @@ rho_E_tau_i %>%
 
 ```{r}
 rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
-                                    E=,
+                                    E=8,
                                     tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
                                     lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
@@ -4035,10 +3981,9 @@ last_value <- nrow(morndf_CR)
 print(last_value)
 
 ```
-1 day 
 
 ```{r}
-tau_i <- 1 
+
 rho_E <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
 lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
@@ -4049,16 +3994,6 @@ lib = lib_ins, pred = lib_ins, E=1,theta=0) #lib train, #pred is pred
 stats_AR <- ComputeError(preds_AR$predictions$Observations,
                          preds_AR$predictions$Predictions)
 
-
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color ="Tau = 1"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "9 AM - 12 PM Chlorophyll Tau = 1 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 1", "AR = 1")) +
-  theme_minimal()
 
 rho_E %>%
   ggplot(aes(x=E,y=rho)) + 
@@ -4073,67 +4008,11 @@ rho_E %>%
 #lib = "1 100 101 200 301 400", - leaving one out
 
 ```
-2-days:
 
-```{r}
-tau_i <- 2
-
-# Same as before but using a larger tau and setting Tp = tau
-
-rho_E_tau_i_0 <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
-                        tau=-tau_i,Tp=tau_i,
-lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
-
-
-#rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
- #                       tau=-tau_i,Tp=tau_i,
-  #                      exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
-#lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
-
-
-
-rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
-                        tau=-tau_i,Tp=tau_i,
-lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
-
-
-# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
-preds_AR <- SMap(dataFrame = morndf_CR, columns = "chl", target = "chl",
-lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i) #lib train, #pred is pred 
-
-#exclusionRadius=tau_i
-stats_AR <- ComputeError(preds_AR$predictions$Observations,
-                         preds_AR$predictions$Predictions)
-
-
-rho_E_tau_i %>%
-  ggplot(aes(x=E,y=rho)) + 
-  geom_line(aes(color="correct")) +
-  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
-  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
-  ylim(0,1) +
-  labs(title=paste0("Simplex with tau = ",tau_i))
-
-
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E_tau_i_0, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color ="Tau = 2"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "9 AM - 12 PM Chlorophyll Tau = 2 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 2", "AR = 1")) +
-  theme_minimal()
-
-  
-```
 4-days:
 
 ```{r}
-2-days:
-
-```{r}
-tau_i <- 2
+tau_i <- 4
 
 # Same as before but using a larger tau and setting Tp = tau
 
@@ -4142,23 +4021,16 @@ rho_E_tau_i_0 <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target =
 lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
 
-#rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
- #                       tau=-tau_i,Tp=tau_i,
-  #                      exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
-#lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
-
-
-
 rho_E_tau_i <- EmbedDimension(dataFrame = morndf_CR, columns = "chl", target = "chl",
                         tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
 lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
 
 # we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
 preds_AR <- SMap(dataFrame = morndf_CR, columns = "chl", target = "chl",
-lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i) #lib train, #pred is pred 
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
 
-#exclusionRadius=tau_i
 stats_AR <- ComputeError(preds_AR$predictions$Observations,
                          preds_AR$predictions$Predictions)
 
@@ -4170,29 +4042,15 @@ rho_E_tau_i %>%
   geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
   ylim(0,1) +
   labs(title=paste0("Simplex with tau = ",tau_i))
-
-
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E_tau_i_0, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color ="Tau = 1"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "9 AM - 12 PM Chlorophyll Tau = 4 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 4", "AR = 1")) +
-  theme_minimal()
-
   
 ```
-  
 
 ###Predict Nonlinear 
 
 ```{r}
-
 rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "chl", target = "chl",
-                                    E=5,
-                                    tau=-tau_i,Tp=tau_i,
+                                    E=9,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
                                     lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
 preds_AR1 <- SMap(dataFrame = morndf_CR, columns = "chl", target = "chl",
@@ -4243,7 +4101,7 @@ print(last_value)
 
     -   Rho
 
-1 day
+
 
 ```{r}
 lib_ins <- c(1,1014) # data up through end of 2022; this is the training set
@@ -4267,19 +4125,6 @@ rho_E %>%
   ylim(0,1)
   
 
-dummy_data <- data.frame(E = NA, rho = NA)
-
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color ="Tau = 1"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "Daily Chlorophyll Tau = 1 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 1", "AR = 1")) +
-  theme_minimal()
-
-
 #rho_E <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
 #lib = "1 1075", pred = "1076 1223", showPlot = TRUE) #lib train, #pred is pred 
 
@@ -4288,57 +4133,6 @@ ggplot() +
 ```
 
 "At a daily time-scale, EDM predictions do not beat the strong day-to-day autocorrelation in the signal." This is no surprise. Let's look again with a larger tau, informed by the previous ACF analysis; we saw a signal somewhere in the window of 4 days - 1 week.
-
-2 days:
-```{r}
-tau_i <- 2
-
-# Same as before but using a larger tau and setting Tp = tau
-
-rho_E_tau_i_0 <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
-                        tau=-tau_i,Tp=tau_i,
-lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
-
-
-rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "chl", target = "chl",
-                        tau=-tau_i,Tp=tau_i,
-lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
-
-
-# we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
-preds_AR <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
-lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i) #lib train, #pred is pred 
-
-stats_AR <- ComputeError(preds_AR$predictions$Observations,
-                         preds_AR$predictions$Predictions)
-
-
-rho_E_tau_i %>%
-  ggplot(aes(x=E,y=rho)) + 
-  geom_line(aes(color="correct")) +
-  geom_line(data=rho_E_tau_i_0,aes(color="wrong")) +
-  geom_hline(aes(yintercept = stats_AR$rho),lty=2,color="black") +
-  ylim(0,1) +
-  labs(title=paste0("Simplex with tau = ",tau_i))
-
-
-# Create a dummy data frame for the legend
-dummy_data <- data.frame(E = NA, rho = NA)
-
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E_tau_i_0, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color =  "Tau = 2"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "Daily Chlorophyll Tau = 2 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 2", "AR = 1")) +
-  theme_minimal()
-
-  
-```
-
-
 
 4-days:
 
@@ -4379,8 +4173,8 @@ rho_E_tau_i %>%
 
 ```{r}
 rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "chl", target = "chl",
-                                    E=3,
-                                    tau=-tau_i,Tp=tau_i,
+                                    E=5,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
                                     lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
 preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
@@ -4438,8 +4232,8 @@ rho_E_tau_i %>%
 ```{r}
 
 rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "chl", target = "chl",
-                                    E=3,
-                                    tau=-tau_i,Tp=tau_i,
+                                    E=5,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
                                     lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
 preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "chl", target = "chl",
@@ -4510,18 +4304,6 @@ stats_AR <- ComputeError(preds_AR$predictions$Observations,
                          preds_AR$predictions$Predictions)
 
 
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color =  "Tau = 1"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "Daily Phycocanin Tau = 1 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 1", "AR = 1")) +
-  theme_minimal()
-
-
-
 rho_E %>%
   ggplot(aes(x=E,y=rho)) + 
   geom_line(color="blue") +
@@ -4532,10 +4314,10 @@ rho_E %>%
 
 "At a daily time-scale, EDM predictions do not beat the strong day-to-day autocorrelation in the signal." This is no surprise. Let's look again with a larger tau, informed by the previous ACF analysis; we saw a signal somewhere in the window of 4 days - 1 week.
 
-2-days:
+4-days:
 
 ```{r}
-tau_i <- 2
+tau_i <- 4
 
 # Same as before but using a larger tau and setting Tp = tau
 
@@ -4546,27 +4328,16 @@ lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred
 
 rho_E_tau_i <- EmbedDimension(dataFrame = ag_df_CR, columns = "phy", target = "phy",
                         tau=-tau_i,Tp=tau_i,
+                        exclusionRadius = tau_i, # exclude 2*tau additional points in cross-val
 lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
 
 # we can use S-map with E=1 and theta=0 to get the AR(1) forecast skill
 preds_AR <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
-lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i) #lib train, #pred is pred 
+lib = lib_ins, pred = lib_ins, E=1,theta=0,tau=-tau_i,Tp=tau_i,exclusionRadius=tau_i) #lib train, #pred is pred 
 
 stats_AR <- ComputeError(preds_AR$predictions$Observations,
                          preds_AR$predictions$Predictions)
-
-
-# Plotting
-ggplot() + 
-  geom_line(data = rho_E, aes(x = E, y = rho, color = "AR = 1"), linetype = "solid") +
-  geom_hline(data = dummy_data, aes(yintercept = stats_AR$rho, color =  "Tau = 2"), linetype = "dashed") +
-  ylim(0, 1) +
-  labs(x = "Embedding Dimension", y = "Prediction Skill (p)", color = "Lines") + 
-  ggtitle( "Daily Phycocanin Tau = 2 V. AR = 1") +
-  scale_color_manual(values = c("blue", "black"), labels = c("Tau = 2", "AR = 1")) +
-  theme_minimal()
-
 
 
 rho_E_tau_i %>%
@@ -4642,8 +4413,8 @@ rho_E_tau_i %>%
 ```{r}
 
 rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "phy", target = "phy",
-                                    E=3,
-                                    tau=-tau_i,Tp=tau_i,
+                                    E=2,
+                                    tau=-tau_i,Tp=tau_i,exclusionRadius = tau_i,
                                     lib = lib_ins, pred = lib_ins, showPlot = TRUE) #lib train, #pred is pred 
 
 preds_AR1 <- SMap(dataFrame = ag_df_CR, columns = "phy", target = "phy",
@@ -4811,9 +4582,6 @@ multivar
 ```{r}
 
 multivar <- Simplex(Embedded = TRUE, columns = c("phy"))
-
-
-
 
 
 
@@ -5026,95 +4794,46 @@ if (file.exists("critical.r .rds")) {
 ```
 
 #Multiview 
+
 Here, we demonstrate this idea using the Multiview() function with the 3-species data used above.
 Multiview() operates by constructing all possible embeddings of dimension E with lag up to E-1. These
 embeddings are ranked by forecast skill (rho) over the lib portion of the data. The individual forecasts for
 the top multiview embeddings are then averaged together. If multiview is not specified it is set to sqrt(C)
 where C is the number of E-dimensional combinations created from all data vectors.
 
-
-```{r}
-
-Multiview = Multiview(dataFrame = ag_df_CR, lib = "1 1174", pred = "1 1174", E = 2,D=3,
-columns = "chl ph Celsius spcond do turb Salinity", target = "phy")
-Multiview()
-test 
-E = 2
-D = 2
-E = 3
-E =5
-would get higher ceilling , exogenous 
-additional analyiss fills in mechanistcally 
-#at least E of 2, after E > 5 com sci problem
-
-
-#E is amounts of lags. univar time lags
-#D is dimension of individual multivariate models, number of vars we're taking at a time. axis to embed. 
-go oup to 2022, lib = pred 
-
-#coluumns * E = 14 
-#dimension = 5
-
-```
 View lists the various combinations of data embedding vectors used for the forecasts along with their prediction statistics.
 Predictions returns the final averaged multiview projections.
 
 
-```{r}
-
-ag_df_CR <- na.omit(ag_df_CR)
-ag_df_CR$date <- as.numeric(ag_df_CR$date)
-
-results_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 1048", pred = "1 1048", E = 2, D=3,
-columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
-
-
-
-
-```
+E is amounts of lags. univar time lags
+D is dimension of individual multivariate models, number of vars we're taking at a time. axis to embed. 
+Additional Analysis fills  in mechnaistically. 
+Can set lib = pred
+At least E of 2, after E > 5 com sci problem
 
 
 ```{r}
 Multiview2 = Multiview(dataFrame = ag_df_CR, lib = "1 1048", pred = "1 1048", E = 3, D= 5,
-columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+                       
+  columns = c("chl", "ph", "Celsius", "spcond", "do", "turb", "Salinity"), 
+  target = "phy")
 Multiview2()
 
-```
 
-
-Multiview()
-test 
-E = 2
-D = 2
-E = 3
-E =5
-would get higher ceilling , exogenous 
-additional analyiss fills in mechanistcally 
-#at least E of 2, after E > 5 com sci problem
-
-
-#E is amounts of lags. univar time lags
-#D is dimension of individual multivariate models, number of vars we're taking at a time. axis to embed. 
-go oup to 2022, lib = pred 
-
-#coluumns * E = 14 
-#dimension = 5
-
-
-```{r}
-plots.dir.path <- list.files(tempdir("C:\\Users\\mfman\\AppData\\Local\\Temp\\RtmpaE80Ug"), pattern="rs-graphics", full.names = TRUE); 
-plots.png.paths <- list.files(plots.dir.path, pattern=".png", full.names = TRUE)
-```
-
-
-```{r}
-file.copy(from=plots.png.paths, to="C:/Users/mfman/OneDrive/Desktop/HAB_PLOTS")
+**DIFFERENCE BETWEEN Multiview 2 and Multiview**?
 
 ```
 
-```{r}
-#mutltiview
 
+
+```{r}
+
+
+#Mutltiview
+
+#Omit NAs 
+
+ag_df_CR <- na.omit(ag_df_CR)
 
 
 # Find the first row number for the first date in 2023
@@ -5122,6 +4841,13 @@ first_row_2023 <- which(format(ag_df_CR$date, "%Y") == "2023")[1]
 
 print(first_row_2023)
 
+#Check class
+
+ag_df_CR$date <- as.numeric(ag_df_CR$date)
+library(rEDM)
+
+
+#**TEST**
 
 # Check if the file exists
 if(file.exists("Multi_E2_D3.rds")) {
@@ -5141,48 +4867,50 @@ if(file.exists("Multi_E2_D3.rds")) {
 }
 
 
+
+#**E3 D5 IN SAMPLE**
+
 # Check if the file exists
-if(file.exists("Mutliview_E2D5.rds")) {
+if(file.exists("Multi_E3_D5.rds")) {
   # Load the file if it exists
-  Multi_E3_D5 <- readRDS("Mutliview_E2D5.rds")
+  Multi_E3_D5 <- readRDS("Mutliview_E3D5.rds")
 } else {
   # If the file does not exist, create Multi_E2_D3
-  Multi_E3_D5 <- Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
+  Multi_E3_D5 <- Multiview(dataFrame = ag_df_CR, lib = "1 1014", pred = "1 1014", E =3, D=5,
                             columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
   # Save Multi_E2_D3 to file
-  saveRDS(Multi_E2_D3, "Mutliview_E2D5.rds")
+  saveRDS(Multi_E3_D5, "Mutliview_E2D5.rds")
 }
 
 
 
-Multi_E2_D3 <- "Mutliview_e2d3.rds"
+#**E2 D3 IN SAMPLE**
+
+Multi_E2_D3 <- "Multi_E2_D3.rds"
 if(!file.exists("Multi_E2_D3.rds")){
-results_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
-columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy") <<
-    results_1 <- Blah Blah
+ Multi_E2_D3 <- Multiview(dataFrame = ag_df_CR, lib = "1 1014", pred = "1 1014", E = 2, D=3,
+                            columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
     save(Multi_E2_D3, file = "Multi_E2_D3.rds")
 } else{
   load(Multi_E2_D3)
 }
 
-Multi_E2_D3 = Multiview(dataFrame = ag_df_CR, lib = "1 17022", pred = "1 17022", E = 2, D=3,
-columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
 
-if (file.exists("CR2023.rds")) {
-  # If it's saved locally, load the data
-  CR2023 <- readRDS("CR2023.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-CR2023 <- read_sheet('https://docs.google.com/spreadsheets/d/1sMKGzW71qErP8DIrxWDvlgqN3o9MrprLjjAFGsOie3I/edit?usp=sharing')
-  saveRDS(CR2023, "CR2023.rds")
+#HEAD
+
+
+head(Multi_E2_D3)
   
-}
+head(Multi_E3_D5)
+
+  
+  
+  
+
 ```
 
 
 #HISTOGRAM
-
-
 
 
 ccm uses y to predict x, if true, x can affect y 
@@ -5195,5 +4923,19 @@ Simplex ( Embedded = True, columns = c("x1, "x2))
 set CCM samples to 10 to see result 
 
 
+
+#PULL GRAPHS 
+
+
+```{r}
+plots.dir.path <- list.files(tempdir("C:\\Users\\mfman\\AppData\\Local\\Temp\\RtmpaE80Ug"), pattern="rs-graphics", full.names = TRUE); 
+plots.png.paths <- list.files(plots.dir.path, pattern=".png", full.names = TRUE)
+```
+
+
+```{r}
+file.copy(from=plots.png.paths, to="C:/Users/mfman/OneDrive/Desktop/HAB_PLOTS")
+
+```
 
 
