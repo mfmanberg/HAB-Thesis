@@ -4,15 +4,38 @@ output: html_document
 date: "2024-04-03"
 editor_options: 
   chunk_output_type: console
+  markdown: 
+    wrap: 72
 ---
-
-
 
 ```{r}
 library(dplyr)
 
 ```
+# PRELIM STATS 
 
+#FIND CRITICAL VALUES
+
+```{r}
+critical.r <- function( n, alpha = .05 ) {
+  df <- n - 2
+  critical.t <- qt(alpha/2, df, lower.tail = F)
+  critical.r <- sqrt( (critical.t^2) / ( (critical.t^2) + df ) )
+  return(critical.r)
+}
+# Example usage: Critical correlation coefficient at sample size of n = 100
+critical.r( 100 )
+
+
+if (file.exists("critical.r .rds")) {
+  # If it's saved locally, load the data
+  critical.r <- readRDS("critical.r.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(critical.r , "critical.r .rds")
+}
+
+```
 
 
 #TABLE AG_DF_CR
@@ -43,7 +66,6 @@ for (var in vars) {
 }
 
 ```
-
 
 ```{r}
 # Create an empty data frame to store the results
@@ -85,18 +107,11 @@ print(results_df)
 
 #TABLE All.Logan
 
-
-
-
 #TABLE All.CR_nutrients
 
 #TABLE All.bacteria
 
-
-
-
-
-#Library
+# Library
 
 ```{r}
 library(tidyverse)
@@ -107,10 +122,12 @@ library(rEDM)
 library(ggplot2)
 library(zoo)
 library(quantreg)
+library(dplyr)
 
 ```
 
 #List of all data
+
 ```{r}
 
 #CR BUOY
@@ -189,7 +206,6 @@ All.Var
     
 ```
 
-
 ###9:12
 
 ```{r}
@@ -216,6 +232,7 @@ mornddf_CR$Salinity
 ```
 
 ###HOURLY
+
 ```{r}
 
 df_CR
@@ -270,8 +287,6 @@ df_CR$Salinity
 
 ```
 
-
-
 ##MWRA Non-CSO
 
 ```{r}
@@ -315,8 +330,6 @@ All.CR_nutrients
 
 ```
 
-
-
 ```{r}
 library(tidyverse)
 library(googlesheets4)
@@ -328,7 +341,6 @@ library(zoo)
 library(quantreg)
 
 ```
-
 
 #Vignette
 
@@ -517,6 +529,31 @@ ag_df_CR <-df_CR %>%
 ag_df_CR <- na.omit(ag_df_CR)
 
 
+library(lubridate)
+
+yday(as.Date("2024-03-01"))
+
+df_example <- data.frame(seq(as.Date("2015-01-01"),by=1,length.out=5000))
+df_example <- data.frame(Date=seq(as.Date("2015-01-01"),by=1,length.out=5000))
+df_example <- df_example %>% mutate(yday = yday(Date))
+head(df_example)
+df_example <- df_example %>% mutate(sin_season = sin(2*pi*yday/365))
+df_example %>% ggplot(aes(x=Date,y=sin_season)) + geom_line()
+
+cycle <- df_example
+
+if (file.exists("cycle.rds")) {
+  # If it's saved locally, load the data
+  cycle <- readRDS("cycle.rds")
+} else {
+  # If it's not saved locally, read it from Google Sheets and save it locally
+  saveRDS(cycle, "cycle.rds")
+}
+
+merged_df <- merge(ag_df_CR, cycle, by.x = "date", by.y = "Date", all.x = TRUE)
+
+ag_df_CR <- merged_df %>% select(-10)
+
 if (file.exists("ag_df_CR.rds")) {
   # If it's saved locally, load the data
   ag_df_CR <- readRDS("ag_df_CR.rds")
@@ -524,8 +561,11 @@ if (file.exists("ag_df_CR.rds")) {
   saveRDS(ag_df_CR, "ag_df_CR.rds")
 }
 
-```
 
+
+
+
+```
 
 # 9-12 Values
 
@@ -550,8 +590,8 @@ if (file.exists("morndf_CR.rds")) {
 
 ```
 
+###LOGAN
 
-###LOGAN 
 ```{r}
 
 Logan <- read_sheet('https://docs.google.com/spreadsheets/d/1h3mNXsGZxB4fhkZQGr2e8z6CxAQtumA5a208-GEYvBw/edit?usp=sharing')
@@ -946,7 +986,7 @@ ag_CR_secchi <- na.omit(ag_CR_secchi)
 
 ```
 
-###MWRA CSO 
+###MWRA CSO
 
 ```{r}
 
@@ -1188,7 +1228,6 @@ rm(objects_to_remove)
 
 ```
 
-
 ###CAMCSO
 
 ```{r}
@@ -1420,7 +1459,6 @@ cso_counts <- as.data.frame(table(MWRACSOFinal$CSO_ID))
 
 ```
 
-
 #COMBINE ALL DATA
 
 ##MWRA X EPA
@@ -1473,9 +1511,7 @@ if (file.exists("All.CR_nutrients.rds")) {
                           
 ```
 
-
 #LOGAN X EPA
-
 
 ```{r}
 
@@ -1516,7 +1552,6 @@ if (file.exists("All.CAM017.rds")) {
   
 ```
 
-
 #Combine All Var
 
 ```{r}
@@ -1543,7 +1578,6 @@ if (file.exists("All.Var.rds")) {
   
   
 ```
-
 
 #SURROGATE
 
@@ -1769,7 +1803,7 @@ colnames(Surrogate) <- c(
 
 #PLOT 2021 DRIVERS
 
-####Visualize Salinity 
+####Visualize Salinity
 
 ```{r}
 #Visualize Salinity 2021 
@@ -1932,9 +1966,7 @@ ag_df_CR <- na.omit(ag_df_CR)
 
 ```
 
-
 ####CR BUOY
-
 
 ```{r}
 ag_df_CR
@@ -1956,7 +1988,6 @@ ag_df_CR$turb
 ag_df_CR$Salinity
 
 ```
-
 
 ###9:12
 
@@ -1984,6 +2015,7 @@ mornddf_CR$Salinity
 ```
 
 #ACFs
+
 ```{r}
 
 ag_df_CR
@@ -1993,7 +2025,6 @@ df_CR
 
 
 ```
-
 
 ###ACF Aggreggated
 
@@ -2160,6 +2191,7 @@ plot(pacf2021, main = "Daily Phyocanin PACF")
 ```
 
 ###HOURLY
+
 ```{r}
 
 df_CR
@@ -2464,13 +2496,11 @@ acf_ag_Logan$HourlyAltimeterSetting <- ag_Logan %>%
 
 ```
 
-
 #ARIMA
-
 
 #COEFFICENTS OF CORRELATION
 
-#REGRESSIONS 
+#REGRESSIONS
 
 ```{r}
 
@@ -2525,9 +2555,7 @@ ag_df_CR %>%
 
 ```
 
-##PLOTS W/ CORR > 0.5
-
-
+##PLOTS W/ CORR \> 0.5
 
 ```{r}
 phphy
@@ -2566,8 +2594,8 @@ ag_df_CR %>%
 
 ```
 
+#PLOTS
 
-#PLOTS 
 ```{r}
 
 ag_df_CR <- na.omit(ag_df_CR)
@@ -3155,21 +3183,18 @@ ag_df_CR %>%
 
 #EDM UNIVARIATE
 
-
-
 #S-MAP
 
 #SIMPLEX
 
 #CMAP
 
-
 #CCM MWRA Non-CSO
 
 ***CR_bacteria***
 
+#Enteroccus
 
-#Enteroccus 
 ```{r}
 
 cmap.Enteroccus.del_phy <- CCM(dataFrame = ag_CR_bacteria, E = 4, Tp = 4, columns = "Enteroccus", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
@@ -3193,7 +3218,7 @@ Surr.cmap.Enteroccus.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = 
 
 ```
 
-#E_coli 
+#E_coli
 
 ```{r}
 
@@ -3219,8 +3244,6 @@ Surr.cmap.E_coli.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "E_c
 
 ***CR_Secchi***
 
-
-
 #Total Suspended Solids (mg/L)
 
 ```{r}
@@ -3244,10 +3267,9 @@ Surr.cmap.TSS.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Total 
 
 ```
 
-***CR_Nutrients ***
+***CR_Nutrients***
 
 #Ammonium (uM)
-
 
 ```{r}
 
@@ -3268,7 +3290,7 @@ Surr.cmap.Ammonium.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "A
 Surr.cmap.Ammonium.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Ammonium (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 ```
 
-#"Nitrate+nitrite (uM)"
+\#"Nitrate+nitrite (uM)"
 
 ```{r}
 
@@ -3289,7 +3311,7 @@ Surr.cmap.nitrate_nitrite.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, colum
 
 ```
 
-#Phosphate (uM)   
+#Phosphate (uM)
 
 ```{r}
 
@@ -3311,6 +3333,7 @@ Surr.cmap.phosphate.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "
 ```
 
 #Total phosphorus (uM)
+
 ```{r}
 
 
@@ -3327,10 +3350,11 @@ Surr.cmap.phosphorus.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = 
 Surr.cmap.phosphorus.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Total phosphorus (uM)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
+
 #Phaeophytin
 
-
 #Total phosphorus (uM)
+
 ```{r}
 
 
@@ -3348,7 +3372,6 @@ Surr.cmap.Phaeophytin.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns =
 Surr.cmap.Phaeophytin.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Phaeophytin (ug/L)", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 
 ```
-
 
 ###CAMCSO
 
@@ -3446,8 +3469,7 @@ CAM017_discharges <- subset(CAM017, MG != 0)
 
 ```
 
-    
-  ### ALL CSOs
+\### ALL CSOs
 
 ```{r}
 
@@ -3494,12 +3516,9 @@ All <- All %>%
 All <- na.omit(All)
 ```
 
-
-
 ###CCM LOGAN
 
 #HourlyAltimeterSetting
-
 
 ```{r}
 
@@ -3538,6 +3557,7 @@ Surr.cmap.drybulb.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Ho
 ```
 
 #HourlyPrecipitation
+
 ```{r}
 
 cmap.precip.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyPrecipitation", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
@@ -3575,6 +3595,7 @@ Surr.cmap.humidity.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = " 
 ```
 
 #HourlyStationPressure
+
 ```{r}
 
 cmap.station.del_phy <- CCM(dataFrame = ag_Logan, E = 4, Tp = 4, columns = "HourlyStationPressure", target = "del_phy", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
@@ -3592,8 +3613,7 @@ Surr.cmap.station.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "Ho
 
 ```
 
-
-#HourlyVisibility keep bc effect incident radiation 
+#HourlyVisibility keep bc effect incident radiation
 
 ```{r}
 
@@ -3611,7 +3631,8 @@ Surr.cmap.visibility.phy <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = 
 Surr.cmap.visibility.chl <- CCM(dataFrame = Surrogate, E = 4, Tp = 4, columns = "HourlyVisibility", target = "chl", libSizes = "20 200 10", sample = 100, showPlot = TRUE)
 ```
 
-#HourlyWindDirection - could be matter but direction of wind may not tell how wind is pushing around in charles around. Dan Li. Andy? 
+#HourlyWindDirection - could be matter but direction of wind may not
+tell how wind is pushing around in charles around. Dan Li. Andy?
 
 ```{r}
 
@@ -3662,7 +3683,7 @@ Surr.windspeed.chl.corr <- cor(Surr.cmap.windspeed.chl)[1, 3]
 
 ```
 
-#HourlyWindSpeed - synioptic variable 
+#HourlyWindSpeed - synioptic variable
 
 ```{r}
 
@@ -3697,9 +3718,6 @@ Surr.windspeed.chl.corr <- cor(Surr.cmap.windspeed.chl)[1, 3]
 
 ```
 
-
-
-
 ```{r}
 #1 is get the tau/Tp sorted
 
@@ -3719,7 +3737,7 @@ cycle <- df_example
 
 ```
 
-#FIND CRITICAL VALUES 
+#FIND CRITICAL VALUES
 
 ```{r}
 critical.r <- function( n, alpha = .05 ) {
@@ -3739,8 +3757,6 @@ critical.r( 100 )
 # EDM
 
 ## EDM Uni-variate Analysis
-
-
 
 ## EDM 9-12 PHY
 
@@ -3821,7 +3837,7 @@ rho_E_tau_i %>%
   
 ```
 
-###Predict Nonlinear 
+###Predict Nonlinear
 
 ```{r}
 rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "phy", target = "phy",
@@ -3845,8 +3861,6 @@ rho_theta_tau_i %>%
   labs(title=paste0("Simplex with tau = ",tau_i))
 
 ```
-
-
 
 ## EDM 9-12 1st Diff PHY
 
@@ -3932,7 +3946,7 @@ rho_E_tau_i %>%
   
 ```
 
-###Predict Nonlinear 
+###Predict Nonlinear
 
 ```{r}
 rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "del_phy", target = "del_phy",
@@ -3957,11 +3971,7 @@ rho_theta_tau_i %>%
 
 ```
 
-
-
 ## EDM 9-12 CHL
-
-
 
 ```{r}
 
@@ -4045,7 +4055,7 @@ rho_E_tau_i %>%
   
 ```
 
-###Predict Nonlinear 
+###Predict Nonlinear
 
 ```{r}
 rho_theta_tau_i <- PredictNonlinear(dataFrame = morndf_CR, columns = "chl", target = "chl",
@@ -4091,8 +4101,6 @@ print(last_value)
 
 ```
 
-
-
 ### Optimal Embedding Dimension
 
 -   rho_E
@@ -4100,8 +4108,6 @@ print(last_value)
     -   E
 
     -   Rho
-
-
 
 ```{r}
 lib_ins <- c(1,1014) # data up through end of 2022; this is the training set
@@ -4132,7 +4138,10 @@ rho_E %>%
 
 ```
 
-"At a daily time-scale, EDM predictions do not beat the strong day-to-day autocorrelation in the signal." This is no surprise. Let's look again with a larger tau, informed by the previous ACF analysis; we saw a signal somewhere in the window of 4 days - 1 week.
+"At a daily time-scale, EDM predictions do not beat the strong
+day-to-day autocorrelation in the signal." This is no surprise. Let's
+look again with a larger tau, informed by the previous ACF analysis; we
+saw a signal somewhere in the window of 4 days - 1 week.
 
 4-days:
 
@@ -4169,7 +4178,6 @@ rho_E_tau_i %>%
   labs(title=paste0("Simplex with tau = ",tau_i))
   
 ```
-
 
 ```{r}
 rho_theta_tau_i <- PredictNonlinear(dataFrame = ag_df_CR, columns = "chl", target = "chl",
@@ -4253,10 +4261,7 @@ rho_theta_tau_i %>%
 
 ```
 
-
-
 ## EDM Daily PHY
-
 
 ```{r}
 
@@ -4277,10 +4282,6 @@ print(last_value)
 
 ```
 
-
- 
-
-
 ### Optimal Embedding Dimension
 
 -   rho_E
@@ -4288,8 +4289,6 @@ print(last_value)
     -   E
 
     -   Rho
-
-
 
 ```{r}
 
@@ -4312,7 +4311,10 @@ rho_E %>%
   
 ```
 
-"At a daily time-scale, EDM predictions do not beat the strong day-to-day autocorrelation in the signal." This is no surprise. Let's look again with a larger tau, informed by the previous ACF analysis; we saw a signal somewhere in the window of 4 days - 1 week.
+"At a daily time-scale, EDM predictions do not beat the strong
+day-to-day autocorrelation in the signal." This is no surprise. Let's
+look again with a larger tau, informed by the previous ACF analysis; we
+saw a signal somewhere in the window of 4 days - 1 week.
 
 4-days:
 
@@ -4434,25 +4436,6 @@ rho_theta_tau_i %>%
 
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ### Prediction Decay
 
 -   rho_Tp
@@ -4514,7 +4497,8 @@ columns = "chl", E = 4)
 
 ### Evaluate S-Map
 
-It can be advantageous to combine different time series to create the phase-space embedding, providing they are observed from the same system.
+It can be advantageous to combine different time series to create the
+phase-space embedding, providing they are observed from the same system.
 
 -   Smap
 
@@ -4555,8 +4539,9 @@ tail(cbind(smap$predictions, smap$coefficients))
 
 ### Convergent Cross Mapping (CCM)
 
-find out multivariate
-CSO - reflects and episodic threshold reponse to weather
+find out multivariate CSO - reflects and episodic threshold reponse to
+weather
+
 ```{r}
 
 
@@ -4567,18 +4552,14 @@ cmap <- CCM(dataFrame = ag_df_CR, E = 4, Tp = 2, columns = "chl", target = "turb
 #tp - 2012 paper 
 ```
 
-
-
-
 # EDM Mulit-variate Analysis
 
 ### Generalized Takens Theorem
 
 smplx_3CR
 
+multivar
 
-
-multivar 
 ```{r}
 
 multivar <- Simplex(Embedded = TRUE, columns = c("phy"))
@@ -4586,11 +4567,6 @@ multivar <- Simplex(Embedded = TRUE, columns = c("phy"))
 
 
 ```
-
-
-
-
-
 
 ### Save as New
 
@@ -4651,7 +4627,9 @@ Plot
 
 ### S-Map Coefficents
 
-The Lorenz5D data.frame contains a N=5 dimensional system with F=8 from (Lorenz 1996). Here, we use SMap() to compute a 4-dimensional forecast at Tp=1:
+The Lorenz5D data.frame contains a N=5 dimensional system with F=8 from
+(Lorenz 1996). Here, we use SMap() to compute a 4-dimensional forecast
+at Tp=1:
 
 ```{r}
 colnames(ag_df_CR) #pull col names
@@ -4699,118 +4677,58 @@ Mview$View[which(Mview$View$rho > 0.91), ]
 
 ```
 
-
 Next Steps
 
-Convergent Cross Mapping 
-All possible Covariates in one data frame as different columns
-other variables
-all the endogenous bigoeochemical and human drivers management driver and 
-- rainfall and CSOs
-know now half week to weekly time scale we see has signature 
-until we have the corrected values to keep the diff
-9 to noon 4 days negative auto, use linear s-map 
-To make forecasts: predict 1st differences and add back into data 
-prediction for tomorrow is value for tomorrow + value for today 
+Convergent Cross Mapping All possible Covariates in one data frame as
+different columns other variables all the endogenous bigoeochemical and
+human drivers management driver and - rainfall and CSOs know now half
+week to weekly time scale we see has signature until we have the
+corrected values to keep the diff 9 to noon 4 days negative auto, use
+linear s-map To make forecasts: predict 1st differences and add back
+into data prediction for tomorrow is value for tomorrow + value for
+today
 
-list of measurments and list of weekly measurments
-look at Tahoe + geneva
+list of measurments and list of weekly measurments look at Tahoe +
+geneva
 
-plot minutes vs. volume CSOs
-- rainfall causal associations?
-analysis: 
-same trend = synchornity
-not = one is low and flat is oneway causal  
-number at end matters, consider as correlation coeff, rho ccm at max library size
+plot minutes vs. volume CSOs - rainfall causal associations? analysis:
+same trend = synchornity not = one is low and flat is oneway causal\
+number at end matters, consider as correlation coeff, rho ccm at max
+library size
 
 look at full matrix with nutrient time series later on
 
-2 different data matrixes
-1. time-scale
-2. timespan
+2 different data matrixes 1. time-scale 2. timespan
+
+#EDM MULTIVARIATE
+
+#MULTIVIEW
+
+ccm uses y to predict x, if true, x can affect y ccm wraps (Simplex
+target = x, columns = y)
+
+multivariate Simplex ( Embedded = True, columns = c("x1, "x2)) set CCM
+samples to 10 to see result
 
 
-#EDM MULTIVARIATE 
+#Multiview
 
-#MULTIVIEW 
+Here, we demonstrate this idea using the Multiview() function with the
+3-species data used above. Multiview() operates by constructing all
+possible embeddings of dimension E with lag up to E-1. These embeddings
+are ranked by forecast skill (rho) over the lib portion of the data. The
+individual forecasts for the top multiview embeddings are then averaged
+together. If multiview is not specified it is set to sqrt(C) where C is
+the number of E-dimensional combinations created from all data vectors.
 
+View lists the various combinations of data embedding vectors used for
+the forecasts along with their prediction statistics. Predictions
+returns the final averaged multiview projections.
 
-ccm uses y to predict x, if true, x can affect y 
-ccm wraps (Simplex target = x, columns = y)
-
-
-
-multivariate 
-Simplex ( Embedded = True, columns = c("x1, "x2)) 
-set CCM samples to 10 to see result 
-
-
-
-```{r}
-#1 is get the tau/Tp sorted
-
-
-yday(as.Date("2024-03-01"))
-
-df_example <- data.frame(seq(as.Date("2010-01-01"),by=1,length.out=3000))
-df_example <- data.frame(Date=seq(as.Date("2010-01-01"),by=1,length.out=3000))
-df_example <- df_example %>% mutate(yday = yday(Date))
-head(df_example)
-df_example <- df_example %>% mutate(sin_season = sin(2*pi*yday/365))
-df_example %>% ggplot(aes(x=Date,y=sin_season)) + geom_line()
-
-
-if (file.exists("cycle.rds")) {
-  # If it's saved locally, load the data
-  cycle <- readRDS("cycle.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-  saveRDS(cycle, "cycle.rds")
-}
-
-```
-
-#FIND CRITICAL VALUES 
-
-```{r}
-critical.r <- function( n, alpha = .05 ) {
-  df <- n - 2
-  critical.t <- qt(alpha/2, df, lower.tail = F)
-  critical.r <- sqrt( (critical.t^2) / ( (critical.t^2) + df ) )
-  return(critical.r)
-}
-# Example usage: Critical correlation coefficient at sample size of n = 100
-critical.r( 100 )
-
-
-if (file.exists("critical.r .rds")) {
-  # If it's saved locally, load the data
-  critical.r <- readRDS("critical.r.rds")
-} else {
-  # If it's not saved locally, read it from Google Sheets and save it locally
-  saveRDS(critical.r , "critical.r .rds")
-}
-
-```
-
-#Multiview 
-
-Here, we demonstrate this idea using the Multiview() function with the 3-species data used above.
-Multiview() operates by constructing all possible embeddings of dimension E with lag up to E-1. These
-embeddings are ranked by forecast skill (rho) over the lib portion of the data. The individual forecasts for
-the top multiview embeddings are then averaged together. If multiview is not specified it is set to sqrt(C)
-where C is the number of E-dimensional combinations created from all data vectors.
-
-View lists the various combinations of data embedding vectors used for the forecasts along with their prediction statistics.
-Predictions returns the final averaged multiview projections.
-
-
-E is amounts of lags. univar time lags
-D is dimension of individual multivariate models, number of vars we're taking at a time. axis to embed. 
-Additional Analysis fills  in mechnaistically. 
-Can set lib = pred
-At least E of 2, after E > 5 com sci problem
-
+E is amounts of lags. univar time lags D is dimension of individual
+multivariate models, number of vars we're taking at a time. axis to
+embed. Additional Analysis fills in mechnaistically. Can set lib = pred
+At least E of 2, after E \> 5 com sci problem
 
 ```{r}
 Multiview2 = Multiview(dataFrame = ag_df_CR, lib = "1 1048", pred = "1 1048", E = 3, D= 5,
@@ -4824,7 +4742,18 @@ Multiview2()
 
 ```
 
+\#**TEST**
 
+# Check if the file exists
+
+#if(file.exists("Multi_E2_D3.rds")) { \# Load the file if it exists
+Multi_E2_D3 \<- readRDS("Multi_E2_D3.rds") #} else { \# If the file does
+not exist, create Multi_E2_D3 Multi_E2_D3 \<- Multiview(dataFrame =
+ag_df_CR, \# lib = "1 1014", pred = "1 1014", \# in-sample \# lib = "1
+1014", pred = "1015 1189", \# out-sample \# trainLib = TRUE, \# E = 2,
+D=3, \# tau = -7, Tp = 7, \# columns = "chl phy ph Celsius spcond do
+turb Salinity", #target = "phy") \# Save Multi_E2_D3 to file \#
+saveRDS(Multi_E2_D3, "Multi_E2_D3.rds") #}
 
 ```{r}
 
@@ -4847,27 +4776,6 @@ ag_df_CR$date <- as.numeric(ag_df_CR$date)
 library(rEDM)
 
 
-#**TEST**
-
-# Check if the file exists
-if(file.exists("Multi_E2_D3.rds")) {
-  # Load the file if it exists
-  Multi_E2_D3 <- readRDS("Multi_E2_D3.rds")
-} else {
-  # If the file does not exist, create Multi_E2_D3
-  Multi_E2_D3 <- Multiview(dataFrame = ag_df_CR, 
-                           lib = "1 1014", pred = "1 1014", # in-sample
-                           # lib = "1 1014", pred = "1015 1189", # out-sample
-                           trainLib = TRUE,
-                           E = 2, D=3,
-                           tau = -7, Tp = 7,
-                            columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
-  # Save Multi_E2_D3 to file
-  saveRDS(Multi_E2_D3, "Multi_E2_D3.rds")
-}
-
-
-
 #**E3 D5 IN SAMPLE**
 
 # Check if the file exists
@@ -4877,7 +4785,7 @@ if(file.exists("Multi_E3_D5.rds")) {
 } else {
   # If the file does not exist, create Multi_E2_D3
   Multi_E3_D5 <- Multiview(dataFrame = ag_df_CR, lib = "1 1014", pred = "1 1014", E =3, D=5,
-                            columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+                            columns = "chl phy ph Celsius spcond do turb Salinity sin_season", target = "phy")
   # Save Multi_E2_D3 to file
   saveRDS(Multi_E3_D5, "Mutliview_E2D5.rds")
 }
@@ -4889,7 +4797,7 @@ if(file.exists("Multi_E3_D5.rds")) {
 Multi_E2_D3 <- "Multi_E2_D3.rds"
 if(!file.exists("Multi_E2_D3.rds")){
  Multi_E2_D3 <- Multiview(dataFrame = ag_df_CR, lib = "1 1014", pred = "1 1014", E = 2, D=3,
-                            columns = "chl phy ph Celsius spcond do turb Salinity", target = "phy")
+                            columns = "chl phy ph Celsius spcond do turb Salinity sin_season", target = "phy")
     save(Multi_E2_D3, file = "Multi_E2_D3.rds")
 } else{
   load(Multi_E2_D3)
@@ -4909,33 +4817,22 @@ head(Multi_E3_D5)
 
 ```
 
-
 #HISTOGRAM
 
+ccm uses y to predict x, if true, x can affect y ccm wraps (Simplex
+target = x, columns = y)
 
-ccm uses y to predict x, if true, x can affect y 
-ccm wraps (Simplex target = x, columns = y)
+multivariate Simplex ( Embedded = True, columns = c("x1, "x2)) set CCM
+samples to 10 to see result
 
-
-
-multivariate 
-Simplex ( Embedded = True, columns = c("x1, "x2)) 
-set CCM samples to 10 to see result 
-
-
-
-#PULL GRAPHS 
-
+#PULL GRAPHS
 
 ```{r}
 plots.dir.path <- list.files(tempdir("C:\\Users\\mfman\\AppData\\Local\\Temp\\RtmpaE80Ug"), pattern="rs-graphics", full.names = TRUE); 
 plots.png.paths <- list.files(plots.dir.path, pattern=".png", full.names = TRUE)
 ```
 
-
 ```{r}
 file.copy(from=plots.png.paths, to="C:/Users/mfman/OneDrive/Desktop/HAB_PLOTS")
 
 ```
-
-
